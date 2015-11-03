@@ -1,9 +1,13 @@
 """
 font data tables for truetype and afm computer modern fonts
 """
-
 # this dict maps symbol names to fontnames, glyphindex.  To get the
 # glyph index from the character code, you have to use get_charmap
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+import six
+
 """
 from matplotlib.ft2font import FT2Font
 font = FT2Font('/usr/local/share/matplotlib/cmr10.ttf')
@@ -87,7 +91,7 @@ latex_to_bakoma = {
     r'\rho'                      : ('cmmi10',  39),
     r'\sigma'                    : ('cmmi10',  21),
     r'\tau'                      : ('cmmi10',  43),
-    r'\upsilon'                  : ('cmmi10',  25),
+    '\\upsilon'                  : ('cmmi10',  25),
     r'\phi'                      : ('cmmi10',  42),
     r'\chi'                      : ('cmmi10',  17),
     r'\psi'                      : ('cmmi10',  31),
@@ -108,7 +112,7 @@ latex_to_bakoma = {
     r'7'                         : ('cmr10',  127),
     r'8'                         : ('cmr10',   77),
     r'9'                         : ('cmr10',   22),
-    r'                           :'                    : ('cmr10',   85),
+    r':'                         : ('cmr10',   85),
     r';'                         : ('cmr10',   31),
     r'='                         : ('cmr10',   41),
     r'\leftbracket'              : ('cmr10',   62),
@@ -128,10 +132,12 @@ latex_to_bakoma = {
     r'\Xi'                       : ('cmr10',   3),
     r'\Pi'                       : ('cmr10',  17),
     r'\Sigma'                    : ('cmr10',  10),
-    r'\Upsilon'                  : ('cmr10',  11),
+    '\\Upsilon'                  : ('cmr10',  11),
     r'\Phi'                      : ('cmr10',   9),
     r'\Psi'                      : ('cmr10',  15),
     r'\Omega'                    : ('cmr10',  12),
+
+    r'\prime'                    : ('cmsy10',  73),
 
     # these are mathml names, I think.  I'm just using them for the
     # tex methods noted
@@ -146,7 +152,7 @@ latex_to_bakoma = {
     r'\combiningdotabove'        : ('cmr10', 26), # for \dot
 
     r'\leftarrow'                : ('cmsy10',  10),
-    r'\uparrow'                  : ('cmsy10',  25),
+    '\\uparrow'                  : ('cmsy10',  25),
     r'\downarrow'                : ('cmsy10',  28),
     r'\leftrightarrow'           : ('cmsy10',  24),
     r'\nearrow'                  : ('cmsy10',  99),
@@ -154,14 +160,12 @@ latex_to_bakoma = {
     r'\simeq'                    : ('cmsy10', 108),
     r'\Leftarrow'                : ('cmsy10', 104),
     r'\Rightarrow'               : ('cmsy10', 112),
-    r'\Uparrow'                  : ('cmsy10',  60),
+    '\\Uparrow'                  : ('cmsy10',  60),
     r'\Downarrow'                : ('cmsy10',  68),
     r'\Leftrightarrow'           : ('cmsy10',  51),
     r'\nwarrow'                  : ('cmsy10',  65),
     r'\swarrow'                  : ('cmsy10', 116),
     r'\propto'                   : ('cmsy10',  15),
-    r'\prime'                    : ('cmsy10',  73),
-    r"'"                         : ('cmsy10',  73),
     r'\infty'                    : ('cmsy10',  32),
     r'\in'                       : ('cmsy10',  59),
     r'\ni'                       : ('cmsy10', 122),
@@ -179,7 +183,7 @@ latex_to_bakoma = {
     r'\aleph'                    : ('cmsy10',  26),
     r'\cup'                      : ('cmsy10',   6),
     r'\cap'                      : ('cmsy10',  19),
-    r'\uplus'                    : ('cmsy10',  58),
+    '\\uplus'                    : ('cmsy10',  58),
     r'\wedge'                    : ('cmsy10',  43),
     r'\vee'                      : ('cmsy10',  96),
     r'\vdash'                    : ('cmsy10', 109),
@@ -193,8 +197,8 @@ latex_to_bakoma = {
     r'\mid'                      : ('cmsy10',  47),
     r'\vert'                     : ('cmsy10',  47),
     r'\Vert'                     : ('cmsy10',  44),
-    r'\updownarrow'              : ('cmsy10',  94),
-    r'\Updownarrow'              : ('cmsy10',  53),
+    '\\updownarrow'              : ('cmsy10',  94),
+    '\\Updownarrow'              : ('cmsy10',  53),
     r'\backslash'                : ('cmsy10', 126),
     r'\wr'                       : ('cmsy10', 101),
     r'\nabla'                    : ('cmsy10', 110),
@@ -245,6 +249,9 @@ latex_to_bakoma = {
     r'\rightarrow'               : ('cmsy10',  12),
     r'\to'                       : ('cmsy10',  12),
     r'\spadesuit'                : ('cmsy10',   7),
+    r'?'                         : ('cmr10',   50),
+    r'!'                         : ('cmr10',   29),
+    r'&'                         : ('cmr10',  109)
 }
 
 latex_to_cmex = {
@@ -292,7 +299,7 @@ latex_to_standard = {
     r'\rho'                      : ('psyr', 114),
     r'\sigma'                    : ('psyr', 115),
     r'\tau'                      : ('psyr', 116),
-    r'\upsilon'                  : ('psyr', 117),
+    '\\upsilon'                  : ('psyr', 117),
     r'\varpi'                    : ('psyr', 118),
     r'\omega'                    : ('psyr', 119),
     r'\xi'                       : ('psyr', 120),
@@ -307,7 +314,7 @@ latex_to_standard = {
     r'\spadesuit'                : ('psyr', 170),
     r'\leftrightarrow'           : ('psyr', 171),
     r'\leftarrow'                : ('psyr', 172),
-    r'\uparrow'                  : ('psyr', 173),
+    '\\uparrow'                  : ('psyr', 173),
     r'\rightarrow'               : ('psyr', 174),
     r'\downarrow'                : ('psyr', 175),
     r'\pm'                       : ('psyr', 176),
@@ -346,12 +353,12 @@ latex_to_standard = {
     r'\surd'                     : ('psyr', 214),
     r'\__sqrt__'                 : ('psyr', 214),
     r'\cdot'                     : ('psyr', 215),
-    r'\urcorner'                 : ('psyr', 216),
+    '\\urcorner'                 : ('psyr', 216),
     r'\vee'                      : ('psyr', 217),
     r'\wedge'                    : ('psyr', 218),
     r'\Leftrightarrow'           : ('psyr', 219),
     r'\Leftarrow'                : ('psyr', 220),
-    r'\Uparrow'                  : ('psyr', 221),
+    '\\Uparrow'                  : ('psyr', 221),
     r'\Rightarrow'               : ('psyr', 222),
     r'\Downarrow'                : ('psyr', 223),
     r'\Diamond'                  : ('psyr', 224),
@@ -363,39 +370,39 @@ latex_to_standard = {
     r'\lceil'                    : ('psyr', 233),
     r'\lbrace'                   : ('psyr', 123),
     r'\Psi'                      : ('psyr',  89),
-    r'\bot'                      : ('psyr', 0136),
-    r'\Omega'                    : ('psyr', 0127),
-    r'\leftbracket'              : ('psyr', 0133),
-    r'\rightbracket'             : ('psyr', 0135),
+    r'\bot'                      : ('psyr', 0o136),
+    r'\Omega'                    : ('psyr', 0o127),
+    r'\leftbracket'              : ('psyr', 0o133),
+    r'\rightbracket'             : ('psyr', 0o135),
     r'\leftbrace'                : ('psyr', 123),
-    r'\leftparen'                : ('psyr', 050),
-    r'\prime'                    : ('psyr', 0242),
-    r'\sharp'                    : ('psyr', 043),
-    r'\slash'                    : ('psyr', 057),
-    r'\Lamda'                    : ('psyr', 0114),
-    r'\neg'                      : ('psyr', 0330),
-    r'\Upsilon'                  : ('psyr', 0241),
-    r'\rightbrace'               : ('psyr', 0175),
-    r'\rfloor'                   : ('psyr', 0373),
-    r'\lambda'                   : ('psyr', 0154),
-    r'\to'                       : ('psyr', 0256),
-    r'\Xi'                       : ('psyr', 0130),
-    r'\emptyset'                 : ('psyr', 0306),
-    r'\lfloor'                   : ('psyr', 0353),
-    r'\rightparen'               : ('psyr', 051),
-    r'\rceil'                    : ('psyr', 0371),
-    r'\ni'                       : ('psyr', 047),
-    r'\epsilon'                  : ('psyr', 0145),
-    r'\Theta'                    : ('psyr', 0121),
-    r'\langle'                   : ('psyr', 0341),
-    r'\leftangle'                : ('psyr', 0341),
-    r'\rangle'                   : ('psyr', 0361),
-    r'\rightangle'               : ('psyr', 0361),
-    r'\rbrace'                   : ('psyr', 0175),
-    r'\circ'                     : ('psyr', 0260),
-    r'\diamond'                  : ('psyr', 0340),
-    r'\mu'                       : ('psyr', 0155),
-    r'\mid'                      : ('psyr', 0352),
+    r'\leftparen'                : ('psyr', 0o50),
+    r'\prime'                    : ('psyr', 0o242),
+    r'\sharp'                    : ('psyr', 0o43),
+    r'\slash'                    : ('psyr', 0o57),
+    r'\Lamda'                    : ('psyr', 0o114),
+    r'\neg'                      : ('psyr', 0o330),
+    '\\Upsilon'                  : ('psyr', 0o241),
+    r'\rightbrace'               : ('psyr', 0o175),
+    r'\rfloor'                   : ('psyr', 0o373),
+    r'\lambda'                   : ('psyr', 0o154),
+    r'\to'                       : ('psyr', 0o256),
+    r'\Xi'                       : ('psyr', 0o130),
+    r'\emptyset'                 : ('psyr', 0o306),
+    r'\lfloor'                   : ('psyr', 0o353),
+    r'\rightparen'               : ('psyr', 0o51),
+    r'\rceil'                    : ('psyr', 0o371),
+    r'\ni'                       : ('psyr', 0o47),
+    r'\epsilon'                  : ('psyr', 0o145),
+    r'\Theta'                    : ('psyr', 0o121),
+    r'\langle'                   : ('psyr', 0o341),
+    r'\leftangle'                : ('psyr', 0o341),
+    r'\rangle'                   : ('psyr', 0o361),
+    r'\rightangle'               : ('psyr', 0o361),
+    r'\rbrace'                   : ('psyr', 0o175),
+    r'\circ'                     : ('psyr', 0o260),
+    r'\diamond'                  : ('psyr', 0o340),
+    r'\mu'                       : ('psyr', 0o155),
+    r'\mid'                      : ('psyr', 0o352),
     r'\imath'                    : ('pncri8a', 105),
     r'\%'                        : ('pncr8a',  37),
     r'\$'                        : ('pncr8a',  36),
@@ -1760,7 +1767,7 @@ type12uni = {
     'uni044B'        : 1099
 }
 
-uni2type1 = dict([(v,k) for k,v in type12uni.items()])
+uni2type1 = dict(((v,k) for k,v in six.iteritems(type12uni)))
 
 tex2uni = {
     'widehat'                  : 0x0302,
@@ -2321,7 +2328,21 @@ tex2uni = {
     'biguplus'                 : 10756,
     'epsilon'                  : 949,
     'vartheta'                 : 977,
-    'bigotimes'                : 10754
+    'bigotimes'                : 10754,
+    'guillemotleft'            : 171,
+    'ring'                     : 730,
+    'Thorn'                    : 222,
+    'guilsinglright'           : 8250,
+    'perthousand'              : 8240,
+    'macron'                   : 175,
+    'cent'                     : 162,
+    'guillemotright'           : 187,
+    'equal'                    : 61,
+    'asterisk'                 : 42,
+    'guilsinglleft'            : 8249,
+    'plus'                     : 43,
+    'thorn'                    : 254,
+    'dagger'                   : 8224
 }
 
 # Each element is a 4-tuple of the form:
@@ -2355,17 +2376,17 @@ stix_virtual_fonts = {
             [
             (0x0030, 0x0039, 'rm', 0x1d7d8), # 0-9
             (0x0041, 0x0042, 'it', 0xe154),  # A-B
-            (0x0043, 0x0043, 'it', 0x2102),  # C (missing in beta STIX fonts)
+            (0x0043, 0x0043, 'it', 0x2102),  # C
             (0x0044, 0x0044, 'it', 0x2145),  # D
             (0x0045, 0x0047, 'it', 0xe156),  # E-G
-            (0x0048, 0x0048, 'it', 0x210d),  # H (missing in beta STIX fonts)
+            (0x0048, 0x0048, 'it', 0x210d),  # H
             (0x0049, 0x004d, 'it', 0xe159),  # I-M
-            (0x004e, 0x004e, 'it', 0x2115),  # N (missing in beta STIX fonts)
+            (0x004e, 0x004e, 'it', 0x2115),  # N
             (0x004f, 0x004f, 'it', 0xe15e),  # O
-            (0x0050, 0x0051, 'it', 0x2119),  # P-Q (missing in beta STIX fonts)
-            (0x0052, 0x0052, 'it', 0x211d),  # R (missing in beta STIX fonts)
+            (0x0050, 0x0051, 'it', 0x2119),  # P-Q
+            (0x0052, 0x0052, 'it', 0x211d),  # R
             (0x0053, 0x0059, 'it', 0xe15f),  # S-Y
-            (0x005a, 0x005a, 'it', 0x2124),  # Z (missing in beta STIX fonts)
+            (0x005a, 0x005a, 'it', 0x2124),  # Z
             (0x0061, 0x0063, 'it', 0xe166),  # a-c
             (0x0064, 0x0065, 'it', 0x2146),  # d-e
             (0x0066, 0x0068, 'it', 0xe169),  # f-h
@@ -2380,8 +2401,23 @@ stix_virtual_fonts = {
         'bf':
             [
             (0x0030, 0x0039, 'rm', 0x1d7d8), # 0-9
-            (0x0041, 0x005a, 'bf', 0xe38a),  # A-Z
-            (0x0061, 0x007a, 'bf', 0xe39d),  # a-z
+            (0x0041, 0x0042, 'bf', 0xe38a),  # A-B
+            (0x0043, 0x0043, 'bf', 0x2102),  # C
+            (0x0044, 0x0044, 'bf', 0x2145),  # D
+            (0x0045, 0x0047, 'bf', 0xe38d),  # E-G
+            (0x0048, 0x0048, 'bf', 0x210d),  # H
+            (0x0049, 0x004d, 'bf', 0xe390),  # I-M
+            (0x004e, 0x004e, 'bf', 0x2115),  # N
+            (0x004f, 0x004f, 'bf', 0xe395),  # O
+            (0x0050, 0x0051, 'bf', 0x2119),  # P-Q
+            (0x0052, 0x0052, 'bf', 0x211d),  # R
+            (0x0053, 0x0059, 'bf', 0xe396),  # S-Y
+            (0x005a, 0x005a, 'bf', 0x2124),  # Z
+            (0x0061, 0x0063, 'bf', 0xe39d),  # a-c
+            (0x0064, 0x0065, 'bf', 0x2146),  # d-e
+            (0x0066, 0x0068, 'bf', 0xe3a2),  # f-h
+            (0x0069, 0x006a, 'bf', 0x2148),  # i-j
+            (0x006b, 0x007a, 'bf', 0xe3a7),  # k-z
             (0x0393, 0x0393, 'bf', 0x213e),  # \Gamma
             (0x03a0, 0x03a0, 'bf', 0x213f),  # \Pi
             (0x03a3, 0x03a3, 'bf', 0x2140),  # \Sigma
@@ -2462,7 +2498,7 @@ stix_virtual_fonts = {
         (0x0049, 0x0049, 'it', 0x2110),  # I
         (0x004a, 0x004b, 'it', 0x1d4a5), # J-K
         (0x004c, 0x004c, 'it', 0x2112),  # L
-        (0x004d, 0x003d, 'it', 0x2113),  # M
+        (0x004d, 0x003d, 'it', 0x2133),  # M
         (0x004e, 0x0051, 'it', 0x1d4a9), # N-Q
         (0x0052, 0x0052, 'it', 0x211b),  # R
         (0x0053, 0x005a, 'it', 0x1d4ae), # S-Z

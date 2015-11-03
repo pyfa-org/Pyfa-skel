@@ -1,19 +1,22 @@
 """
 Manage figures for pyplot interface.
 """
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+import six
 
 import sys, gc
 
 import atexit
-import traceback
 
 
 def error_msg(msg):
-    print >>sys.stderr, msg
+    print(msg, file=sys.stderr)
 
 class Gcf(object):
     """
-    Manage a set of integer-numbered figures.
+    Singleton to manage a set of integer-numbered figures.
 
     This class is never instantiated; it consists of two class
     attributes (a list and a dictionary), and a set of static
@@ -66,20 +69,28 @@ class Gcf(object):
         del Gcf.figs[num]
         #print len(Gcf.figs.keys()), len(Gcf._activeQue)
         manager.destroy()
-        gc.collect()
+        gc.collect(1)
 
     @staticmethod
     def destroy_fig(fig):
         "*fig* is a Figure instance"
-        for manager in Gcf.figs.values():
+        num = None
+        for manager in six.itervalues(Gcf.figs):
             if manager.canvas.figure == fig:
-                Gcf.destroy(manager.num)
+                num = manager.num
+                break
+        if num is not None:
+            Gcf.destroy(num)
 
     @staticmethod
     def destroy_all():
-        for manager in Gcf.figs.values():
-            Gcf.destroy(manager.num)
+        for manager in list(Gcf.figs.values()):
+            manager.canvas.mpl_disconnect(manager._cidgcf)
+            manager.destroy()
 
+        Gcf._activeQue = []
+        Gcf.figs.clear()
+        gc.collect(1)
 
     @staticmethod
     def has_fignum(num):
@@ -93,7 +104,7 @@ class Gcf(object):
         """
         Return a list of figure managers.
         """
-        return Gcf.figs.values()
+        return list(Gcf.figs.values())
 
     @staticmethod
     def get_num_fig_managers():
@@ -123,7 +134,5 @@ class Gcf(object):
         Gcf._activeQue.append(manager)
         Gcf.figs[manager.num] = manager
 
+
 atexit.register(Gcf.destroy_all)
-
-
-
