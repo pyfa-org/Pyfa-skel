@@ -17,9 +17,13 @@ metrics for those fonts.
 If you find TeX expressions that don't parse or render properly,
 please email mdroe@stsci.edu, but please check KNOWN ISSUES below first.
 """
-from __future__ import division
-import os
-from cStringIO import StringIO
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+import six
+
+import os, sys
+from six import unichr
 from math import ceil
 try:
     set
@@ -30,12 +34,21 @@ from warnings import warn
 
 from numpy import inf, isinf
 import numpy as np
-from matplotlib.pyparsing import Combine, Group, Optional, Forward, \
-    Literal, OneOrMore, ZeroOrMore, ParseException, Empty, \
-    ParseResults, Suppress, oneOf, StringEnd, ParseFatalException, \
-    FollowedBy, Regex, ParserElement
+
+import pyparsing
+from pyparsing import Combine, Group, Optional, Forward, \
+     Literal, OneOrMore, ZeroOrMore, ParseException, Empty, \
+     ParseResults, Suppress, oneOf, StringEnd, ParseFatalException, \
+     FollowedBy, Regex, ParserElement, QuotedString, ParseBaseException
+
 # Enable packrat parsing
-ParserElement.enablePackrat()
+if (six.PY3 and
+    [int(x) for x in pyparsing.__version__.split('.')] < [2, 0, 0]):
+    warn("Due to a bug in pyparsing <= 2.0.0 on Python 3.x, packrat parsing "
+         "has been disabled.  Mathtext rendering will be much slower as a "
+         "result.  Install pyparsing 2.0.0 or later to improve performance.")
+else:
+    ParserElement.enablePackrat()
 
 from matplotlib.afm import AFM
 from matplotlib.cbook import Bunch, get_realpath_and_stat, \
@@ -45,8 +58,6 @@ from matplotlib.font_manager import findfont, FontProperties
 from matplotlib._mathtext_data import latex_to_bakoma, \
         latex_to_standard, tex2uni, latex_to_cmex, stix_virtual_fonts
 from matplotlib import get_data_path, rcParams
-
-
 
 import matplotlib.colors as mcolors
 import matplotlib._png as _png
@@ -80,7 +91,7 @@ Type1 symbol name (i.e. 'phi').
     except KeyError:
         message = """'%(symbol)s' is not a valid Unicode character or
 TeX/Type1 symbol"""%locals()
-        raise ValueError, message
+        raise ValueError(message)
 
 def unichr_safe(index):
     """Return the Unicode character corresponding to the index,
@@ -100,7 +111,7 @@ class MathtextBackend(object):
     Subclasses need to override the following:
 
       - :meth:`render_glyph`
-      - :meth:`render_filled_rect`
+      - :meth:`render_rect_filled`
       - :meth:`get_results`
 
     And optionally, if you need to use a Freetype hinting style:
@@ -108,7 +119,9 @@ class MathtextBackend(object):
       - :meth:`get_hinting_type`
     """
     def __init__(self):
-        self.fonts_object = None
+        self.width = 0
+        self.height = 0
+        self.depth = 0
 
     def set_canvas_size(self, w, h, d):
         'Dimension the drawing canvas'
@@ -123,7 +136,7 @@ class MathtextBackend(object):
         """
         raise NotImplementedError()
 
-    def render_filled_rect(self, x1, y1, x2, y2):
+    def render_rect_filled(self, x1, y1, x2, y2):
         """
         Draw a filled black rectangle from (*x1*, *y1*) to (*x2*, *y2*).
         """
@@ -143,56 +156,7 @@ class MathtextBackend(object):
         """
         return LOAD_NO_HINTING
 
-class MathtextBackendBbox(MathtextBackend):
-    """
-    A backend whose only purpose is to get a precise bounding box.
-    Only required for the Agg backend.
-    """
-
-    def __init__(self, real_backend):
-        MathtextBackend.__init__(self)
-        self.bbox = [0, 0, 0, 0]
-        self.real_backend = real_backend
-
-    def _update_bbox(self, x1, y1, x2, y2):
-        self.bbox = [min(self.bbox[0], x1),
-                     min(self.bbox[1], y1),
-                     max(self.bbox[2], x2),
-                     max(self.bbox[3], y2)]
-
-    def render_glyph(self, ox, oy, info):
-        self._update_bbox(ox + info.metrics.xmin,
-                          oy - info.metrics.ymax,
-                          ox + info.metrics.xmax,
-                          oy - info.metrics.ymin)
-
-    def render_rect_filled(self, x1, y1, x2, y2):
-        self._update_bbox(x1, y1, x2, y2)
-
-    def get_results(self, box):
-        orig_height = box.height
-        orig_depth  = box.depth
-        ship(0, 0, box)
-        bbox = self.bbox
-        bbox = [bbox[0] - 1, bbox[1] - 1, bbox[2] + 1, bbox[3] + 1]
-        self._switch_to_real_backend()
-        self.fonts_object.set_canvas_size(
-            bbox[2] - bbox[0],
-            (bbox[3] - bbox[1]) - orig_depth,
-            (bbox[3] - bbox[1]) - orig_height)
-        ship(-bbox[0], -bbox[1], box)
-        return self.fonts_object.get_results(box)
-
-    def get_hinting_type(self):
-        return self.real_backend.get_hinting_type()
-
-    def _switch_to_real_backend(self):
-        self.fonts_object.mathtext_backend = self.real_backend
-        self.real_backend.fonts_object = self.fonts_object
-        self.real_backend.ox = self.bbox[0]
-        self.real_backend.oy = self.bbox[1]
-
-class MathtextBackendAggRender(MathtextBackend):
+class MathtextBackendAgg(MathtextBackend):
     """
     Render glyphs and rectangles to an FTImage buffer, which is later
     transferred to the Agg image by the Agg backend.
@@ -201,53 +165,76 @@ class MathtextBackendAggRender(MathtextBackend):
         self.ox = 0
         self.oy = 0
         self.image = None
+        self.mode = 'bbox'
+        self.bbox = [0, 0, 0, 0]
         MathtextBackend.__init__(self)
+
+    def _update_bbox(self, x1, y1, x2, y2):
+        self.bbox = [min(self.bbox[0], x1),
+                     min(self.bbox[1], y1),
+                     max(self.bbox[2], x2),
+                     max(self.bbox[3], y2)]
 
     def set_canvas_size(self, w, h, d):
         MathtextBackend.set_canvas_size(self, w, h, d)
-        self.image = FT2Image(ceil(w), ceil(h + d))
+        if self.mode != 'bbox':
+            self.image = FT2Image(ceil(w), ceil(h + d))
 
     def render_glyph(self, ox, oy, info):
-        info.font.draw_glyph_to_bitmap(
-            self.image, ox, oy - info.metrics.iceberg, info.glyph)
+        if self.mode == 'bbox':
+            self._update_bbox(ox + info.metrics.xmin,
+                              oy - info.metrics.ymax,
+                              ox + info.metrics.xmax,
+                              oy - info.metrics.ymin)
+        else:
+            info.font.draw_glyph_to_bitmap(
+                self.image, ox, oy - info.metrics.iceberg, info.glyph,
+                antialiased=rcParams['text.antialiased'])
 
     def render_rect_filled(self, x1, y1, x2, y2):
-        height = max(int(y2 - y1) - 1, 0)
-        if height == 0:
-            center = (y2 + y1) / 2.0
-            y = int(center - (height + 1) / 2.0)
+        if self.mode == 'bbox':
+            self._update_bbox(x1, y1, x2, y2)
         else:
-            y = int(y1)
-        self.image.draw_rect_filled(int(x1), y, ceil(x2), y + height)
+            height = max(int(y2 - y1) - 1, 0)
+            if height == 0:
+                center = (y2 + y1) / 2.0
+                y = int(center - (height + 1) / 2.0)
+            else:
+                y = int(y1)
+            self.image.draw_rect_filled(int(x1), y, ceil(x2), y + height)
 
-    def get_results(self, box):
-        return (self.ox,
-                self.oy,
-                self.width,
-                self.height + self.depth,
-                self.depth,
-                self.image,
-                self.fonts_object.get_used_characters())
+    def get_results(self, box, used_characters):
+        self.mode = 'bbox'
+        orig_height = box.height
+        orig_depth  = box.depth
+        ship(0, 0, box)
+        bbox = self.bbox
+        bbox = [bbox[0] - 1, bbox[1] - 1, bbox[2] + 1, bbox[3] + 1]
+        self.mode = 'render'
+        self.set_canvas_size(
+            bbox[2] - bbox[0],
+            (bbox[3] - bbox[1]) - orig_depth,
+            (bbox[3] - bbox[1]) - orig_height)
+        ship(-bbox[0], -bbox[1], box)
+        result = (self.ox,
+                  self.oy,
+                  self.width,
+                  self.height + self.depth,
+                  self.depth,
+                  self.image,
+                  used_characters)
+        self.image = None
+        return result
 
     def get_hinting_type(self):
-        if rcParams['text.hinting']:
-            return LOAD_FORCE_AUTOHINT
-        else:
-            return LOAD_NO_HINTING
+        from matplotlib.backends import backend_agg
+        return backend_agg.get_hinting_flag()
 
-def MathtextBackendAgg():
-    return MathtextBackendBbox(MathtextBackendAggRender())
-
-class MathtextBackendBitmapRender(MathtextBackendAggRender):
-    def get_results(self, box):
-        return self.image, self.depth
-
-def MathtextBackendBitmap():
-    """
-    A backend to generate standalone mathtext images.  No additional
-    matplotlib backend is required.
-    """
-    return MathtextBackendBbox(MathtextBackendBitmapRender())
+class MathtextBackendBitmap(MathtextBackendAgg):
+    def get_results(self, box, used_characters):
+        ox, oy, width, height, depth, image, characters = \
+            MathtextBackendAgg.get_results(self, box, used_characters)
+        return image, depth
 
 class MathtextBackendPs(MathtextBackend):
     """
@@ -255,7 +242,7 @@ class MathtextBackendPs(MathtextBackend):
     backend.
     """
     def __init__(self):
-        self.pswriter = StringIO()
+        self.pswriter = six.moves.cStringIO()
         self.lastfont = None
 
     def render_glyph(self, ox, oy, info):
@@ -281,14 +268,13 @@ setfont
         ps = "%f %f %f %f rectfill\n" % (x1, self.height - y2, x2 - x1, y2 - y1)
         self.pswriter.write(ps)
 
-    def get_results(self, box):
-        ship(0, -self.depth, box)
-        #print self.depth
+    def get_results(self, box, used_characters):
+        ship(0, 0, box)
         return (self.width,
                 self.height + self.depth,
                 self.depth,
                 self.pswriter,
-                self.fonts_object.get_used_characters())
+                used_characters)
 
 class MathtextBackendPdf(MathtextBackend):
     """
@@ -309,14 +295,14 @@ class MathtextBackendPdf(MathtextBackend):
     def render_rect_filled(self, x1, y1, x2, y2):
         self.rects.append((x1, self.height - y2, x2 - x1, y2 - y1))
 
-    def get_results(self, box):
-        ship(0, -self.depth, box)
+    def get_results(self, box, used_characters):
+        ship(0, 0, box)
         return (self.width,
                 self.height + self.depth,
                 self.depth,
                 self.glyphs,
                 self.rects,
-                self.fonts_object.get_used_characters())
+                used_characters)
 
 class MathtextBackendSvg(MathtextBackend):
     """
@@ -329,29 +315,28 @@ class MathtextBackendSvg(MathtextBackend):
 
     def render_glyph(self, ox, oy, info):
         oy = self.height - oy + info.offset
-        thetext = unichr_safe(info.num)
 
         self.svg_glyphs.append(
-            (info.font, info.fontsize, thetext, ox, oy, info.metrics))
+            (info.font, info.fontsize, info.num, ox, oy, info.metrics))
 
     def render_rect_filled(self, x1, y1, x2, y2):
         self.svg_rects.append(
             (x1, self.height - y1 + 1, x2 - x1, y2 - y1))
 
-    def get_results(self, box):
-        ship(0, -self.depth, box)
+    def get_results(self, box, used_characters):
+        ship(0, 0, box)
         svg_elements = Bunch(svg_glyphs = self.svg_glyphs,
                              svg_rects = self.svg_rects)
         return (self.width,
                 self.height + self.depth,
                 self.depth,
                 svg_elements,
-                self.fonts_object.get_used_characters())
+                used_characters)
 
 class MathtextBackendPath(MathtextBackend):
     """
-    Store information to write a mathtext rendering to the Cairo
-    backend.
+    Store information to write a mathtext rendering to the text path
+    machinery.
     """
 
     def __init__(self):
@@ -360,7 +345,7 @@ class MathtextBackendPath(MathtextBackend):
 
     def render_glyph(self, ox, oy, info):
         oy = self.height - oy + info.offset
-        thetext = unichr_safe(info.num)
+        thetext = info.num
         self.glyphs.append(
             (info.font, info.fontsize, thetext, ox, oy))
 
@@ -368,8 +353,8 @@ class MathtextBackendPath(MathtextBackend):
         self.rects.append(
             (x1, self.height-y2 , x2 - x1, y2 - y1))
 
-    def get_results(self, box):
-        ship(0, -self.depth, box)
+    def get_results(self, box, used_characters):
+        ship(0, 0, box)
         return (self.width,
                 self.height + self.depth,
                 self.depth,
@@ -396,8 +381,8 @@ class MathtextBackendCairo(MathtextBackend):
         self.rects.append(
             (x1, y1 - self.height, x2 - x1, y2 - y1))
 
-    def get_results(self, box):
-        ship(0, -self.depth, box)
+    def get_results(self, box, used_characters):
+        ship(0, 0, box)
         return (self.width,
                 self.height + self.depth,
                 self.depth,
@@ -425,8 +410,6 @@ class Fonts(object):
         """
         self.default_font_prop = default_font_prop
         self.mathtext_backend = mathtext_backend
-        # Make these classes doubly-linked
-        self.mathtext_backend.fonts_object = self
         self.used_characters = {}
 
     def destroy(self):
@@ -447,7 +430,7 @@ class Fonts(object):
 
         *fontclassX*: TODO
 
-        *symX*: a symbol in raw TeX form. e.g. '1', 'x' or '\sigma'
+        *symX*: a symbol in raw TeX form. e.g., '1', 'x' or '\sigma'
 
         *fontsizeX*: the fontsize in points
 
@@ -463,7 +446,7 @@ class Fonts(object):
 
         *font_class*: TODO
 
-        *sym*:  a symbol in raw TeX form. e.g. '1', 'x' or '\sigma'
+        *sym*:  a symbol in raw TeX form. e.g., '1', 'x' or '\sigma'
 
         *fontsize*: font size in points
 
@@ -549,7 +532,9 @@ class Fonts(object):
         Get the data needed by the backend to render the math
         expression.  The return value is backend-specific.
         """
-        return self.mathtext_backend.get_results(box)
+        result = self.mathtext_backend.get_results(box, self.get_used_characters())
+        self.destroy()
+        return result
 
     def get_sized_alternatives_for_symbol(self, fontname, sym):
         """
@@ -570,7 +555,7 @@ class TruetypeFonts(Fonts):
             self.font     = font
             self.charmap  = font.get_charmap()
             self.glyphmap = dict(
-                [(glyphind, ccode) for ccode, glyphind in self.charmap.iteritems()])
+                [(glyphind, ccode) for ccode, glyphind in six.iteritems(self.charmap)])
 
         def __repr__(self):
             return repr(self.font)
@@ -581,7 +566,7 @@ class TruetypeFonts(Fonts):
         self._fonts = {}
 
         filename = findfont(default_font_prop)
-        default_font = self.CachedFont(FT2Font(str(filename)))
+        default_font = self.CachedFont(FT2Font(filename))
         self._fonts['default'] = default_font
         self._fonts['regular'] = default_font
 
@@ -596,8 +581,8 @@ class TruetypeFonts(Fonts):
             basename = font
 
         cached_font = self._fonts.get(basename)
-        if cached_font is None:
-            font = FT2Font(str(basename))
+        if cached_font is None and os.path.exists(basename):
+            font = FT2Font(basename)
             cached_font = self.CachedFont(font)
             self._fonts[basename] = cached_font
             self._fonts[font.postscript_name] = cached_font
@@ -606,7 +591,7 @@ class TruetypeFonts(Fonts):
 
     def _get_offset(self, cached_font, glyph, fontsize, dpi):
         if cached_font.font.postscript_name == 'Cmex10':
-            return glyph.height/64.0/2.0 + 256.0/64.0 * dpi/72.0
+            return ((glyph.height/64.0/2.0) + (fontsize/3.0 * dpi/72.0))
         return 0.
 
     def _get_info(self, fontname, font_class, sym, fontsize, dpi):
@@ -699,7 +684,7 @@ class BakomaFonts(TruetypeFonts):
 
         TruetypeFonts.__init__(self, *args, **kwargs)
         self.fontmap = {}
-        for key, val in self._fontmap.iteritems():
+        for key, val in six.iteritems(self._fontmap):
             fullpath = findfont(val)
             self.fontmap[key] = fullpath
             self.fontmap[val] = fullpath
@@ -712,20 +697,14 @@ class BakomaFonts(TruetypeFonts):
         if fontname in self.fontmap and sym in latex_to_bakoma:
             basename, num = latex_to_bakoma[sym]
             slanted = (basename == "cmmi10") or sym in self._slanted_symbols
-            try:
-                cached_font = self._get_font(basename)
-            except RuntimeError:
-                pass
-            else:
+            cached_font = self._get_font(basename)
+            if cached_font is not None:
                 symbol_name = cached_font.font.get_glyph_name(num)
                 num = cached_font.glyphmap[num]
         elif len(sym) == 1:
             slanted = (fontname == "it")
-            try:
-                cached_font = self._get_font(fontname)
-            except RuntimeError:
-                pass
-            else:
+            cached_font = self._get_font(fontname)
+            if cached_font is not None:
                 num = ord(sym)
                 gid = cached_font.charmap.get(num)
                 if gid is not None:
@@ -787,7 +766,11 @@ class BakomaFonts(TruetypeFonts):
                           ('\leftbrace', '{'),
                           ('\rightbrace', '}'),
                           ('\leftbracket', '['),
-                          ('\rightbracket', ']')]:
+                          ('\rightbracket', ']'),
+                          (r'\{', '{'),
+                          (r'\}', '}'),
+                          (r'\[', '['),
+                          (r'\]', ']')]:
         _size_alternatives[alias] = _size_alternatives[target]
 
     def get_sized_alternatives_for_symbol(self, fontname, sym):
@@ -863,11 +846,8 @@ class UnicodeFonts(TruetypeFonts):
 
             slanted = (new_fontname == 'it') or sym in self._slanted_symbols
             found_symbol = False
-            try:
-                cached_font = self._get_font(new_fontname)
-            except RuntimeError:
-                pass
-            else:
+            cached_font = self._get_font(new_fontname)
+            if cached_font is not None:
                 try:
                     glyphindex = cached_font.charmap[uniindex]
                     found_symbol = True
@@ -936,7 +916,7 @@ class StixFonts(UnicodeFonts):
     def __init__(self, *args, **kwargs):
         TruetypeFonts.__init__(self, *args, **kwargs)
         self.fontmap = {}
-        for key, name in self._fontmap.iteritems():
+        for key, name in six.iteritems(self._fontmap):
             fullpath = findfont(name)
             self.fontmap[key] = fullpath
             self.fontmap[name] = fullpath
@@ -986,6 +966,9 @@ class StixFonts(UnicodeFonts):
 
     _size_alternatives = {}
     def get_sized_alternatives_for_symbol(self, fontname, sym):
+        fixes = {'\{': '{', '\}': '}', '\[': '[', '\]': ']'}
+        sym = fixes.get(sym, sym)
+
         alternatives = self._size_alternatives.get(sym)
         if alternatives:
             return alternatives
@@ -1051,12 +1034,13 @@ class StandardPsFonts(Fonts):
         if filename is None:
             filename = findfont('Helvetica', fontext='afm',
                                 directory=self.basepath)
-        default_font = AFM(file(filename, 'r'))
+        with open(filename, 'r') as fd:
+            default_font = AFM(fd)
         default_font.fname = filename
 
         self.fonts['default'] = default_font
         self.fonts['regular'] = default_font
-        self.pswriter = StringIO()
+        self.pswriter = six.moves.cStringIO()
 
     def _get_font(self, font):
         if font in self.fontmap:
@@ -1067,7 +1051,8 @@ class StandardPsFonts(Fonts):
         cached_font = self.fonts.get(basename)
         if cached_font is None:
             fname = os.path.join(self.basepath, basename + ".afm")
-            cached_font = AFM(file(fname, 'r'))
+            with open(fname, 'r') as fd:
+                cached_font = AFM(fd)
             cached_font.fname = fname
             self.fonts[basename] = cached_font
             self.fonts[cached_font.get_fontname()] = cached_font
@@ -1085,7 +1070,7 @@ class StandardPsFonts(Fonts):
         # This class includes greek letters, so we're ok
         if (fontname == 'it' and
             (len(sym) > 1 or
-             not unicodedata.category(unicode(sym)).startswith("L"))):
+             not unicodedata.category(six.text_type(sym)).startswith("L"))):
             fontname = 'rm'
 
         found_symbol = False
@@ -1189,7 +1174,7 @@ class StandardPsFonts(Fonts):
 #    Typesetting math formulas
 #
 # Many of the docstrings below refer to a numbered "node" in that
-# book, e.g. node123
+# book, e.g., node123
 #
 # Note that (as TeX) y increases downward, unlike many other parts of
 # matplotlib.
@@ -1303,7 +1288,7 @@ class Char(Node):
         Node.__init__(self)
         self.c = c
         self.font_output = state.font_output
-        assert isinstance(state.font, (str, unicode, int))
+        assert isinstance(state.font, (six.string_types, int))
         self.font = state.font
         self.font_class = state.font_class
         self.fontsize = state.fontsize
@@ -1802,6 +1787,9 @@ class Kern(Node):
     when its *width* denotes additional spacing in the vertical
     direction.
     """
+    height = 0
+    depth = 0
+
     def __init__(self, width):
         Node.__init__(self)
         self.width = width
@@ -1840,7 +1828,7 @@ class AutoHeightChar(Hlist):
     fonts), the correct glyph will be selected, otherwise this will
     always just return a scaled version of the glyph.
     """
-    def __init__(self, c, height, depth, state, always=False):
+    def __init__(self, c, height, depth, state, always=False, factor=None):
         alternatives = state.font_output.get_sized_alternatives_for_symbol(
             state.font, c)
 
@@ -1852,7 +1840,8 @@ class AutoHeightChar(Hlist):
             if char.height + char.depth >= target_total:
                 break
 
-        factor = target_total / (char.height + char.depth)
+        if factor is None:
+            factor = target_total / (char.height + char.depth)
         state.fontsize *= factor
         char = Char(sym, state)
 
@@ -2044,7 +2033,7 @@ def Error(msg):
     Helper class to raise parser errors.
     """
     def raise_error(s, loc, toks):
-        raise ParseFatalException(msg + "\n" + s)
+        raise ParseFatalException(s, loc, msg)
 
     empty = Empty()
     empty.setParseAction(raise_error)
@@ -2059,46 +2048,46 @@ class Parser(object):
     The grammar is based directly on that in TeX, though it cuts a few
     corners.
     """
-    _binary_operators = set(r'''
+    _binary_operators = set('''
       + *
-      \pm             \sqcap                   \rhd
-      \mp             \sqcup                   \unlhd
-      \times          \vee                     \unrhd
-      \div            \wedge                   \oplus
-      \ast            \setminus                \ominus
-      \star           \wr                      \otimes
-      \circ           \diamond                 \oslash
-      \bullet         \bigtriangleup           \odot
-      \cdot           \bigtriangledown         \bigcirc
-      \cap            \triangleleft            \dagger
-      \cup            \triangleright           \ddagger
-      \uplus          \lhd                     \amalg'''.split())
+      \\pm             \\sqcap                   \\rhd
+      \\mp             \\sqcup                   \\unlhd
+      \\times          \\vee                     \\unrhd
+      \\div            \\wedge                   \\oplus
+      \\ast            \\setminus                \\ominus
+      \\star           \\wr                      \\otimes
+      \\circ           \\diamond                 \\oslash
+      \\bullet         \\bigtriangleup           \\odot
+      \\cdot           \\bigtriangledown         \\bigcirc
+      \\cap            \\triangleleft            \\dagger
+      \\cup            \\triangleright           \\ddagger
+      \\uplus          \\lhd                     \\amalg'''.split())
 
-    _relation_symbols = set(r'''
+    _relation_symbols = set('''
       = < > :
-      \leq            \geq             \equiv           \models
-      \prec           \succ            \sim             \perp
-      \preceq         \succeq          \simeq           \mid
-      \ll             \gg              \asymp           \parallel
-      \subset         \supset          \approx          \bowtie
-      \subseteq       \supseteq        \cong            \Join
-      \sqsubset       \sqsupset        \neq             \smile
-      \sqsubseteq     \sqsupseteq      \doteq           \frown
-      \in             \ni              \propto
-      \vdash          \dashv           \dots'''.split())
+      \\leq            \\geq             \\equiv           \\models
+      \\prec           \\succ            \\sim             \\perp
+      \\preceq         \\succeq          \\simeq           \\mid
+      \\ll             \\gg              \\asymp           \\parallel
+      \\subset         \\supset          \\approx          \\bowtie
+      \\subseteq       \\supseteq        \\cong            \\Join
+      \\sqsubset       \\sqsupset        \\neq             \\smile
+      \\sqsubseteq     \\sqsupseteq      \\doteq           \\frown
+      \\in             \\ni              \\propto
+      \\vdash          \\dashv           \\dots'''.split())
 
-    _arrow_symbols = set(r'''
-      \leftarrow              \longleftarrow           \uparrow
-      \Leftarrow              \Longleftarrow           \Uparrow
-      \rightarrow             \longrightarrow          \downarrow
-      \Rightarrow             \Longrightarrow          \Downarrow
-      \leftrightarrow         \longleftrightarrow      \updownarrow
-      \Leftrightarrow         \Longleftrightarrow      \Updownarrow
-      \mapsto                 \longmapsto              \nearrow
-      \hookleftarrow          \hookrightarrow          \searrow
-      \leftharpoonup          \rightharpoonup          \swarrow
-      \leftharpoondown        \rightharpoondown        \nwarrow
-      \rightleftharpoons      \leadsto'''.split())
+    _arrow_symbols = set('''
+      \\leftarrow              \\longleftarrow           \\uparrow
+      \\Leftarrow              \\Longleftarrow           \\Uparrow
+      \\rightarrow             \\longrightarrow          \\downarrow
+      \\Rightarrow             \\Longrightarrow          \\Downarrow
+      \\leftrightarrow         \\longleftrightarrow      \\updownarrow
+      \\Leftrightarrow         \\Longleftrightarrow      \\Updownarrow
+      \\mapsto                 \\longmapsto              \\nearrow
+      \\hookleftarrow          \\hookrightarrow          \\searrow
+      \\leftharpoonup          \\rightharpoonup          \\swarrow
+      \\leftharpoondown        \\rightharpoondown        \\nwarrow
+      \\rightleftharpoons      \\leadsto'''.split())
 
     _spaced_symbols = _binary_operators | _relation_symbols | _arrow_symbols
 
@@ -2121,217 +2110,215 @@ class Parser(object):
       liminf sin cos exp limsup sinh cosh gcd ln sup cot hom log tan
       coth inf max tanh""".split())
 
-    _ambiDelim = set(r"""
-      | \| / \backslash \uparrow \downarrow \updownarrow \Uparrow
-      \Downarrow \Updownarrow .""".split())
+    _ambi_delim = set("""
+      | \\| / \\backslash \\uparrow \\downarrow \\updownarrow \\Uparrow
+      \\Downarrow \\Updownarrow .""".split())
 
-    _leftDelim = set(r"( [ { < \lfloor \langle \lceil".split())
+    _left_delim = set(r"( [ \{ < \lfloor \langle \lceil".split())
 
-    _rightDelim = set(r") ] } > \rfloor \rangle \rceil".split())
+    _right_delim = set(r") ] \} > \rfloor \rangle \rceil".split())
 
     def __init__(self):
+        p = Bunch()
         # All forward declarations are here
-        font = Forward().setParseAction(self.font).setName("font")
-        latexfont = Forward()
-        subsuper = Forward().setParseAction(self.subsuperscript).setName("subsuper")
-        placeable = Forward().setName("placeable")
-        simple = Forward().setName("simple")
-        autoDelim = Forward().setParseAction(self.auto_sized_delimiter)
-        self._expression = Forward().setParseAction(self.finish).setName("finish")
+        p.accent           = Forward()
+        p.ambi_delim       = Forward()
+        p.apostrophe       = Forward()
+        p.auto_delim       = Forward()
+        p.binom            = Forward()
+        p.bslash           = Forward()
+        p.c_over_c         = Forward()
+        p.customspace      = Forward()
+        p.end_group        = Forward()
+        p.float_literal    = Forward()
+        p.font             = Forward()
+        p.frac             = Forward()
+        p.function         = Forward()
+        p.genfrac          = Forward()
+        p.group            = Forward()
+        p.int_literal      = Forward()
+        p.latexfont        = Forward()
+        p.lbracket         = Forward()
+        p.left_delim       = Forward()
+        p.lbrace           = Forward()
+        p.main             = Forward()
+        p.math             = Forward()
+        p.math_string      = Forward()
+        p.non_math         = Forward()
+        p.operatorname     = Forward()
+        p.overline         = Forward()
+        p.placeable        = Forward()
+        p.rbrace           = Forward()
+        p.rbracket         = Forward()
+        p.required_group   = Forward()
+        p.right_delim      = Forward()
+        p.right_delim_safe = Forward()
+        p.simple           = Forward()
+        p.simple_group     = Forward()
+        p.single_symbol    = Forward()
+        p.space            = Forward()
+        p.sqrt             = Forward()
+        p.stackrel         = Forward()
+        p.start_group      = Forward()
+        p.subsuper         = Forward()
+        p.subsuperop       = Forward()
+        p.symbol           = Forward()
+        p.symbol_name      = Forward()
+        p.token            = Forward()
+        p.unknown_symbol   = Forward()
 
-        float        = Regex(r"[-+]?([0-9]+\.?[0-9]*|\.[0-9]+)")
+        # Set names on everything -- very useful for debugging
+        for key, val in vars(p).items():
+            if not key.startswith('_'):
+                val.setName(key)
 
-        lbrace       = Literal('{').suppress()
-        rbrace       = Literal('}').suppress()
-        start_group  = (Optional(latexfont) - lbrace)
-        start_group.setParseAction(self.start_group)
-        end_group    = rbrace.copy()
-        end_group.setParseAction(self.end_group)
+        p.float_literal <<= Regex(r"[-+]?([0-9]+\.?[0-9]*|\.[0-9]+)")
+        p.int_literal   <<= Regex("[-+]?[0-9]+")
 
-        bslash       = Literal('\\')
+        p.lbrace        <<= Literal('{').suppress()
+        p.rbrace        <<= Literal('}').suppress()
+        p.lbracket      <<= Literal('[').suppress()
+        p.rbracket      <<= Literal(']').suppress()
+        p.bslash        <<= Literal('\\')
 
-        accent       = oneOf(self._accent_map.keys() +
-                             list(self._wide_accents))
+        p.space         <<= oneOf(list(six.iterkeys(self._space_widths)))
+        p.customspace   <<= (Suppress(Literal(r'\hspace'))
+                          - ((p.lbrace + p.float_literal + p.rbrace)
+                            | Error(r"Expected \hspace{n}")))
 
-        function     = oneOf(list(self._function_names))
+        unicode_range =  "\U00000080-\U0001ffff"
+        p.single_symbol <<= Regex(r"([a-zA-Z0-9 +\-*/<>=:,.;!\?&'@()\[\]|%s])|(\\[%%${}\[\]_|])" %
+                               unicode_range)
+        p.symbol_name   <<= (Combine(p.bslash + oneOf(list(six.iterkeys(tex2uni)))) +
+                          FollowedBy(Regex("[^A-Za-z]").leaveWhitespace() | StringEnd()))
+        p.symbol        <<= (p.single_symbol | p.symbol_name).leaveWhitespace()
 
-        fontname     = oneOf(list(self._fontnames))
-        latex2efont  = oneOf(['math' + x for x in self._fontnames])
+        p.apostrophe    <<= Regex("'+")
 
-        space        =(FollowedBy(bslash)
-                     + oneOf([r'\ ',
-                              r'\/',
-                              r'\,',
-                              r'\;',
-                              r'\quad',
-                              r'\qquad',
-                              r'\!'])
-                      ).setParseAction(self.space).setName('space')
+        p.c_over_c      <<= Suppress(p.bslash) + oneOf(list(six.iterkeys(self._char_over_chars)))
 
-        customspace  =(Literal(r'\hspace')
-                     - (( lbrace
-                        - float
-                        - rbrace
-                       ) | Error(r"Expected \hspace{n}"))
-                     ).setParseAction(self.customspace).setName('customspace')
-
-        unicode_range = u"\U00000080-\U0001ffff"
-        symbol       =(Regex(UR"([a-zA-Z0-9 +\-*/<>=:,.;!'@()\[\]|%s])|(\\[%%${}\[\]_|])" % unicode_range)
-                     | (Combine(
-                         bslash
-                       + oneOf(tex2uni.keys())
-                       ) + FollowedBy(Regex("[^a-zA-Z]")))
-                     ).setParseAction(self.symbol).leaveWhitespace()
-
-        c_over_c     =(Suppress(bslash)
-                     + oneOf(self._char_over_chars.keys())
-                     ).setParseAction(self.char_over_chars)
-
-        accent       = Group(
-                         Suppress(bslash)
-                       + accent
-                       - placeable
-                     ).setParseAction(self.accent).setName("accent")
-
-        function     =(Suppress(bslash)
-                     + function
-                     ).setParseAction(self.function).setName("function")
-
-        group        = Group(
-                         start_group
-                       + ZeroOrMore(
-                           autoDelim
-                         ^ simple)
-                       - end_group
-                     ).setParseAction(self.group).setName("group")
-
-        font        <<(Suppress(bslash)
-                     + fontname)
-
-        latexfont   <<(Suppress(bslash)
-                     + latex2efont)
-
-        frac         = Group(
-                       Suppress(Literal(r"\frac"))
-                     + ((group + group)
-                        | Error(r"Expected \frac{num}{den}"))
-                     ).setParseAction(self.frac).setName("frac")
-
-        stackrel     = Group(
-                       Suppress(Literal(r"\stackrel"))
-                     + ((group + group)
-                        | Error(r"Expected \stackrel{num}{den}"))
-                     ).setParseAction(self.stackrel).setName("stackrel")
-
-
-        binom        = Group(
-                       Suppress(Literal(r"\binom"))
-                     + ((group + group)
-                        | Error(r"Expected \binom{num}{den}"))
-                     ).setParseAction(self.binom).setName("binom")
-
-        ambiDelim    = oneOf(list(self._ambiDelim))
-        leftDelim    = oneOf(list(self._leftDelim))
-        rightDelim   = oneOf(list(self._rightDelim))
-        rightDelimSafe = oneOf(list(self._rightDelim - set(['}'])))
-        genfrac      = Group(
-                       Suppress(Literal(r"\genfrac"))
-                     + ((Suppress(Literal('{')) +
-                         oneOf(list(self._ambiDelim | self._leftDelim | set(['']))) +
-                         Suppress(Literal('}')) +
-                         Suppress(Literal('{')) +
-                         oneOf(list(self._ambiDelim |
-                                    (self._rightDelim - set(['}'])) |
-                                    set(['', r'\}']))) +
-                         Suppress(Literal('}')) +
-                         Suppress(Literal('{')) +
-                         Regex("[0-9]*(\.?[0-9]*)?") +
-                         Suppress(Literal('}')) +
-                         group + group + group)
-                        | Error(r"Expected \genfrac{ldelim}{rdelim}{rulesize}{style}{num}{den}"))
-                     ).setParseAction(self.genfrac).setName("genfrac")
-
-
-        sqrt         = Group(
-                       Suppress(Literal(r"\sqrt"))
-                     + Optional(
-                         Suppress(Literal("["))
-                       - Regex("[0-9]+")
-                       - Suppress(Literal("]")),
-                         default = None
-                       )
-                     + (group | Error("Expected \sqrt{value}"))
-                     ).setParseAction(self.sqrt).setName("sqrt")
-
-        placeable   <<(function
-                     ^ (c_over_c | symbol)
-                     ^ accent
-                     ^ group
-                     ^ frac
-                     ^ stackrel
-                     ^ binom
-                     ^ genfrac
-                     ^ sqrt
-                     )
-
-        simple      <<(space
-                     | customspace
-                     | font
-                     | subsuper
-                     )
-
-        subsuperop   = oneOf(["_", "^"])
-
-        subsuper    << Group(
-                         ( Optional(placeable)
-                         + OneOrMore(
-                             subsuperop
-                           - placeable
-                           )
+        p.accent        <<= Group(
+                             Suppress(p.bslash)
+                           + oneOf(list(six.iterkeys(self._accent_map)) + list(self._wide_accents))
+                           - p.placeable
                          )
-                       | placeable
-                     )
 
-        autoDelim   <<(Suppress(Literal(r"\left"))
-                     + ((leftDelim | ambiDelim) | Error("Expected a delimiter"))
-                     + Group(
-                         OneOrMore(
-                            autoDelim
-                          ^ simple))
-                     + Suppress(Literal(r"\right"))
-                     + ((rightDelim | ambiDelim) | Error("Expected a delimiter"))
-                     )
+        p.function      <<= Suppress(p.bslash) + oneOf(list(self._function_names))
 
-        math         = OneOrMore(
-                       autoDelim
-                     ^ simple
-                     ).setParseAction(self.math).setName("math")
+        p.start_group   <<= Optional(p.latexfont) + p.lbrace
+        p.end_group     <<= p.rbrace.copy()
+        p.simple_group  <<= Group(p.lbrace + ZeroOrMore(p.token) + p.rbrace)
+        p.required_group<<= Group(p.lbrace + OneOrMore(p.token) + p.rbrace)
+        p.group         <<= Group(p.start_group + ZeroOrMore(p.token) + p.end_group)
 
-        math_delim   = ~bslash + Literal('$')
+        p.font          <<= Suppress(p.bslash) + oneOf(list(self._fontnames))
+        p.latexfont     <<= Suppress(p.bslash) + oneOf(['math' + x for x in self._fontnames])
 
-        non_math     = Regex(r"(?:(?:\\[$])|[^$])*"
-                     ).setParseAction(self.non_math).setName("non_math").leaveWhitespace()
+        p.frac          <<= Group(
+                             Suppress(Literal(r"\frac"))
+                           - ((p.required_group + p.required_group) | Error(r"Expected \frac{num}{den}"))
+                         )
 
-        self._expression << (
-            non_math
-          + ZeroOrMore(
-                Suppress(math_delim)
-              + Optional(math)
-              + (Suppress(math_delim)
-                 | Error("Expected end of math '$'"))
-              + non_math
-            )
-          ) + StringEnd()
+        p.stackrel      <<= Group(
+                             Suppress(Literal(r"\stackrel"))
+                           - ((p.required_group + p.required_group) | Error(r"Expected \stackrel{num}{den}"))
+                         )
 
-        self.clear()
+        p.binom         <<= Group(
+                             Suppress(Literal(r"\binom"))
+                           - ((p.required_group + p.required_group) | Error(r"Expected \binom{num}{den}"))
+                         )
 
-    def clear(self):
-        """
-        Clear any state before parsing.
-        """
-        self._expr = None
-        self._state_stack = None
-        self._em_width_cache = {}
+        p.ambi_delim    <<= oneOf(list(self._ambi_delim))
+        p.left_delim    <<= oneOf(list(self._left_delim))
+        p.right_delim   <<= oneOf(list(self._right_delim))
+        p.right_delim_safe <<= oneOf(list(self._right_delim - set(['}'])) + [r'\}'])
+
+        p.genfrac       <<= Group(
+                             Suppress(Literal(r"\genfrac"))
+                           - (((p.lbrace + Optional(p.ambi_delim | p.left_delim, default='') + p.rbrace)
+                           +   (p.lbrace + Optional(p.ambi_delim | p.right_delim_safe, default='') + p.rbrace)
+                           +   (p.lbrace + p.float_literal + p.rbrace)
+                           +   p.simple_group + p.required_group + p.required_group)
+                           | Error(r"Expected \genfrac{ldelim}{rdelim}{rulesize}{style}{num}{den}"))
+                         )
+
+        p.sqrt          <<= Group(
+                             Suppress(Literal(r"\sqrt"))
+                           - ((Optional(p.lbracket + p.int_literal + p.rbracket, default=None)
+                              + p.required_group)
+                           | Error("Expected \sqrt{value}"))
+                         )
+
+        p.overline      <<= Group(
+                             Suppress(Literal(r"\overline"))
+                           - (p.required_group | Error("Expected \overline{value}"))
+                         )
+
+        p.unknown_symbol<<= Combine(p.bslash + Regex("[A-Za-z]*"))
+
+        p.operatorname  <<= Group(
+                             Suppress(Literal(r"\operatorname"))
+                           - ((p.lbrace + ZeroOrMore(p.simple | p.unknown_symbol) + p.rbrace)
+                              | Error("Expected \operatorname{value}"))
+                         )
+
+        p.placeable     <<= ( p.accent # Must be first
+                         | p.symbol # Must be second
+                         | p.c_over_c
+                         | p.function
+                         | p.group
+                         | p.frac
+                         | p.stackrel
+                         | p.binom
+                         | p.genfrac
+                         | p.sqrt
+                         | p.overline
+                         | p.operatorname
+                         )
+
+        p.simple        <<= ( p.space
+                         | p.customspace
+                         | p.font
+                         | p.subsuper
+                         )
+
+        p.subsuperop    <<= oneOf(["_", "^"])
+
+        p.subsuper      <<= Group(
+                             (Optional(p.placeable) + OneOrMore(p.subsuperop - p.placeable) + Optional(p.apostrophe))
+                           | (p.placeable + Optional(p.apostrophe))
+                           | p.apostrophe
+                         )
+
+        p.token         <<= ( p.simple
+                         | p.auto_delim
+                         | p.unknown_symbol # Must be last
+                         )
+
+        p.auto_delim    <<= (Suppress(Literal(r"\left"))
+                          - ((p.left_delim | p.ambi_delim) | Error("Expected a delimiter"))
+                          + Group(ZeroOrMore(p.simple | p.auto_delim))
+                          + Suppress(Literal(r"\right"))
+                          - ((p.right_delim | p.ambi_delim) | Error("Expected a delimiter"))
+                         )
+
+        p.math          <<= OneOrMore(p.token)
+
+        p.math_string   <<= QuotedString('$', '\\', unquoteResults=False)
+
+        p.non_math      <<= Regex(r"(?:(?:\\[$])|[^$])*").leaveWhitespace()
+
+        p.main          <<= (p.non_math + ZeroOrMore(p.math_string + p.non_math)) + StringEnd()
+
+        # Set actions
+        for key, val in vars(p).items():
+            if not key.startswith('_'):
+                if hasattr(self, key):
+                    val.setParseAction(getattr(self, key))
+
+        self._expression = p.main
+        self._math_expression = p.math
 
     def parse(self, s, fonts_object, fontsize, dpi):
         """
@@ -2341,15 +2328,19 @@ class Parser(object):
         Returns the parse tree of :class:`Node` instances.
         """
         self._state_stack = [self.State(fonts_object, 'default', 'rm', fontsize, dpi)]
+        self._em_width_cache = {}
         try:
-            self._expression.parseString(s)
-        except ParseException, err:
+            result = self._expression.parseString(s)
+        except ParseBaseException as err:
             raise ValueError("\n".join([
                         "",
                         err.line,
                         " " * (err.column - 1) + "^",
-                        str(err)]))
-        return self._expr
+                        six.text_type(err)]))
+        self._state_stack = None
+        self._em_width_cache = {}
+        self._expression.resetCache()
+        return result[0]
 
     # The state of the parser is maintained in a stack.  Upon
     # entering and leaving a group { } or math/non-math, the stack
@@ -2404,10 +2395,13 @@ class Parser(object):
         """
         self._state_stack.append(self.get_state().copy())
 
-    def finish(self, s, loc, toks):
+    def main(self, s, loc, toks):
         #~ print "finish", toks
-        self._expr = Hlist(toks)
-        return [self._expr]
+        return [Hlist(toks)]
+
+    def math_string(self, s, loc, toks):
+        # print "math_string", toks[0][1:-1]
+        return self._math_expression.parseString(toks[0][1:-1])
 
     def math(self, s, loc, toks):
         #~ print "math", toks
@@ -2451,7 +2445,7 @@ class Parser(object):
         return [box]
 
     def customspace(self, s, loc, toks):
-        return [self._make_space(float(toks[1]))]
+        return [self._make_space(float(toks[0]))]
 
     def symbol(self, s, loc, toks):
         # print "symbol", toks
@@ -2459,7 +2453,7 @@ class Parser(object):
         try:
             char = Char(c, self.get_state())
         except ValueError:
-            raise ParseFatalException("Unknown symbol: %s" % c)
+            raise ParseFatalException(s, loc, "Unknown symbol: %s" % c)
 
         if c in self._spaced_symbols:
             return [Hlist( [self._make_space(0.2),
@@ -2472,6 +2466,11 @@ class Parser(object):
                            do_kern = False)]
         return [char]
 
+    def unknown_symbol(self, s, loc, toks):
+        # print "symbol", toks
+        c = toks[0]
+        raise ParseFatalException(s, loc, "Unknown symbol: %s" % c)
+
     _char_over_chars = {
         # The first 2 entires in the tuple are (font, char, sizescale) for
         # the two symbols under and over.  The third element is the space
@@ -2479,7 +2478,7 @@ class Parser(object):
         r'AA' : (  ('rm', 'A', 1.0), (None, '\circ', 0.5), 0.0),
     }
 
-    def char_over_chars(self, s, loc, toks):
+    def c_over_c(self, s, loc, toks):
         sym = toks[0]
         state = self.get_state()
         thickness = state.font_output.get_underline_thickness(
@@ -2569,6 +2568,18 @@ class Parser(object):
         hlist.function_name = toks[0]
         return hlist
 
+    def operatorname(self, s, loc, toks):
+        self.push_state()
+        state = self.get_state()
+        state.font = 'rm'
+        # Change the font of Chars, but leave Kerns alone
+        for c in toks[0]:
+            if isinstance(c, Char):
+                c.font = 'rm'
+                c._update_metrics()
+        self.pop_state()
+        return Hlist(toks[0])
+
     def start_group(self, s, loc, toks):
         self.push_state()
         # Deal with LaTeX-style font tokens
@@ -2579,6 +2590,7 @@ class Parser(object):
     def group(self, s, loc, toks):
         grp = Hlist(toks[0])
         return [grp]
+    required_group = simple_group = group
 
     def end_group(self, s, loc, toks):
         self.pop_state()
@@ -2607,31 +2619,47 @@ class Parser(object):
             return nucleus.is_slanted()
         return False
 
-    def subsuperscript(self, s, loc, toks):
+    def subsuper(self, s, loc, toks):
         assert(len(toks)==1)
-        # print 'subsuperscript', toks
+        # print 'subsuper', toks
 
         nucleus = None
         sub = None
         super = None
 
-        if len(toks[0]) == 1:
-            return toks[0].asList()
-        elif len(toks[0]) == 2:
-            op, next = toks[0]
+        # Pick all of the apostrophe's out
+        napostrophes = 0
+        new_toks = []
+        for tok in toks[0]:
+            if isinstance(tok, six.string_types) and tok not in ('^', '_'):
+                napostrophes += len(tok)
+            else:
+                new_toks.append(tok)
+        toks = new_toks
+
+        if len(toks) == 0:
+            assert napostrophes
+            nucleus = Hbox(0.0)
+        elif len(toks) == 1:
+            if not napostrophes:
+                return toks[0] # .asList()
+            else:
+                nucleus = toks[0]
+        elif len(toks) == 2:
+            op, next = toks
             nucleus = Hbox(0.0)
             if op == '_':
                 sub = next
             else:
                 super = next
-        elif len(toks[0]) == 3:
-            nucleus, op, next = toks[0]
+        elif len(toks) == 3:
+            nucleus, op, next = toks
             if op == '_':
                 sub = next
             else:
                 super = next
-        elif len(toks[0]) == 5:
-            nucleus, op1, next1, op2, next2 = toks[0]
+        elif len(toks) == 5:
+            nucleus, op1, next1, op2, next2 = toks
             if op1 == op2:
                 if op1 == '_':
                     raise ParseFatalException("Double subscript")
@@ -2653,6 +2681,12 @@ class Parser(object):
             state.font, state.fontsize, state.dpi)
         xHeight = state.font_output.get_xheight(
             state.font, state.fontsize, state.dpi)
+
+        if napostrophes:
+            if super is None:
+                super = Hlist([])
+            for i in range(napostrophes):
+                super.children.extend(self.symbol(s, loc, ['\prime']))
 
         # Handle over/under symbols, such as sum or integral
         if self.is_overunder(nucleus):
@@ -2764,8 +2798,6 @@ class Parser(object):
                 ldelim = '.'
             if rdelim == '':
                 rdelim = '.'
-            elif rdelim == r'\}':
-                rdelim = '}'
             return self._auto_sized_delimiter(ldelim, result, rdelim)
         return result
 
@@ -2824,7 +2856,7 @@ class Parser(object):
                            padded_body])
         # Stretch the glue between the hrule and the body
         rightside.vpack(height + (state.fontsize * state.dpi) / (100.0 * 12.0),
-                        depth, 'exactly')
+                        'exactly', depth)
 
         # Add the root and shift it upward so it is above the tick.
         # The value of 0.6 is a hard-coded hack ;)
@@ -2845,23 +2877,53 @@ class Parser(object):
                        rightside])               # Body
         return [hlist]
 
+    def overline(self, s, loc, toks):
+        assert(len(toks)==1)
+        assert(len(toks[0])==1)
+
+        body = toks[0][0]
+
+        state = self.get_state()
+        thickness = state.font_output.get_underline_thickness(
+            state.font, state.fontsize, state.dpi)
+
+        height = body.height - body.shift_amount + thickness * 3.0
+        depth = body.depth + body.shift_amount
+
+        # Place overline above body
+        rightside = Vlist([Hrule(state),
+                           Fill(),
+                           Hlist([body])])
+
+        # Stretch the glue between the hrule and the body
+        rightside.vpack(height + (state.fontsize * state.dpi) / (100.0 * 12.0),
+                        'exactly', depth)
+
+        hlist = Hlist([rightside])
+        return [hlist]
+
     def _auto_sized_delimiter(self, front, middle, back):
         state = self.get_state()
-        height = max([x.height for x in middle])
-        depth = max([x.depth for x in middle])
+        if len(middle):
+            height = max([x.height for x in middle])
+            depth = max([x.depth for x in middle])
+            factor = None
+        else:
+            height = 0
+            depth = 0
+            factor = 1.0
         parts = []
         # \left. and \right. aren't supposed to produce any symbols
         if front != '.':
-            parts.append(AutoHeightChar(front, height, depth, state))
+            parts.append(AutoHeightChar(front, height, depth, state, factor=factor))
         parts.extend(middle)
         if back != '.':
-            parts.append(AutoHeightChar(back, height, depth, state))
+            parts.append(AutoHeightChar(back, height, depth, state, factor=factor))
         hlist = Hlist(parts)
         return hlist
 
-
-    def auto_sized_delimiter(self, s, loc, toks):
-        #~ print "auto_sized_delimiter", toks
+    def auto_delim(self, s, loc, toks):
+        #~ print "auto_delim", toks
         front, middle, back = toks
 
         return self._auto_sized_delimiter(front, middle.asList(), back)
@@ -2880,7 +2942,7 @@ class MathTextParser(object):
         'ps'    : MathtextBackendPs,
         'pdf'   : MathtextBackendPdf,
         'svg'   : MathtextBackendSvg,
-        'path'   : MathtextBackendPath,
+        'path'  : MathtextBackendPath,
         'cairo' : MathtextBackendCairo,
         'macosx': MathtextBackendAgg,
         }
@@ -2910,8 +2972,11 @@ class MathTextParser(object):
         The results are cached, so multiple calls to :meth:`parse`
         with the same expression should be fast.
         """
+        # There is a bug in Python 3.x where it leaks frame references,
+        # and therefore can't handle this caching
         if prop is None:
             prop = FontProperties()
+
         cacheKey = (s, dpi, hash(prop))
         result = self._cache.get(cacheKey)
         if result is not None:
@@ -2941,20 +3006,12 @@ class MathTextParser(object):
         font_output.set_canvas_size(box.width, box.height, box.depth)
         result = font_output.get_results(box)
         self._cache[cacheKey] = result
-        # Free up the transient data structures
-        self._parser.clear()
-
-        # Fix cyclical references
-        font_output.destroy()
-        font_output.mathtext_backend.fonts_object = None
-        font_output.mathtext_backend = None
-
         return result
 
     def to_mask(self, texstr, dpi=120, fontsize=14):
         """
         *texstr*
-            A valid mathtext string, eg r'IQ: $\sigma_i=15$'
+            A valid mathtext string, e.g., r'IQ: $\sigma_i=15$'
 
         *dpi*
             The dots-per-inch to render the text
@@ -2980,7 +3037,7 @@ class MathTextParser(object):
     def to_rgba(self, texstr, color='black', dpi=120, fontsize=14):
         """
         *texstr*
-            A valid mathtext string, eg r'IQ: $\sigma_i=15$'
+            A valid mathtext string, e.g., r'IQ: $\sigma_i=15$'
 
         *color*
             Any matplotlib color argument
@@ -3020,7 +3077,7 @@ class MathTextParser(object):
             A writable filename or fileobject
 
         *texstr*
-            A valid mathtext string, eg r'IQ: $\sigma_i=15$'
+            A valid mathtext string, e.g., r'IQ: $\sigma_i=15$'
 
         *color*
             A valid matplotlib color argument
@@ -3045,7 +3102,7 @@ class MathTextParser(object):
         image in pixels.
 
         *texstr*
-            A valid mathtext string, eg r'IQ: $\sigma_i=15$'
+            A valid mathtext string, e.g., r'IQ: $\sigma_i=15$'
 
         *dpi*
             The dots-per-inch to render the text
@@ -3057,3 +3114,45 @@ class MathTextParser(object):
         prop = FontProperties(size=fontsize)
         ftimage, depth = self.parse(texstr, dpi=dpi, prop=prop)
         return depth
+
+def math_to_image(s, filename_or_obj, prop=None, dpi=None, format=None):
+    """
+    Given a math expression, renders it in a closely-clipped bounding
+    box to an image file.
+
+    *s*
+       A math expression.  The math portion should be enclosed in
+       dollar signs.
+
+    *filename_or_obj*
+       A filepath or writable file-like object to write the image data
+       to.
+
+    *prop*
+       If provided, a FontProperties() object describing the size and
+       style of the text.
+
+    *dpi*
+       Override the output dpi, otherwise use the default associated
+       with the output format.
+
+    *format*
+       The output format, e.g., 'svg', 'pdf', 'ps' or 'png'.  If not
+       provided, will be deduced from the filename.
+    """
+    from matplotlib import figure
+    # backend_agg supports all of the core output formats
+    from matplotlib.backends import backend_agg
+
+    if prop is None:
+        prop = FontProperties()
+
+    parser = MathTextParser('path')
+    width, height, depth, _, _ = parser.parse(s, dpi=72, prop=prop)
+
+    fig = figure.Figure(figsize=(width / 72.0, height / 72.0))
+    fig.text(0, depth/height, s, fontproperties=prop)
+    backend_agg.FigureCanvasAgg(fig)
+    fig.savefig(filename_or_obj, dpi=dpi, format=format)
+
+    return depth

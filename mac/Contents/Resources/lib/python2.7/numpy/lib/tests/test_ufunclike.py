@@ -1,7 +1,11 @@
-from numpy.testing import *
+from __future__ import division, absolute_import, print_function
+
 import numpy.core as nx
 import numpy.lib.ufunclike as ufl
-from numpy.testing.decorators import deprecated
+from numpy.testing import (
+    run_module_suite, TestCase, assert_, assert_equal, assert_array_equal
+    )
+
 
 class TestUfunclike(TestCase):
 
@@ -27,21 +31,10 @@ class TestUfunclike(TestCase):
         assert_equal(res, tgt)
         assert_equal(out, tgt)
 
-    @deprecated()
-    def test_log2(self):
-        a = nx.array([4.5, 2.3, 6.5])
-        out = nx.zeros(a.shape, float)
-        tgt = nx.array([2.169925, 1.20163386, 2.70043972])
-        res = ufl.log2(a)
-        assert_almost_equal(res, tgt)
-        res = ufl.log2(a, out)
-        assert_almost_equal(res, tgt)
-        assert_almost_equal(out, tgt)
-
     def test_fix(self):
         a = nx.array([[1.0, 1.1, 1.5, 1.8], [-1.0, -1.1, -1.5, -1.8]])
         out = nx.zeros(a.shape, float)
-        tgt = nx.array([[ 1., 1., 1., 1.], [-1., -1., -1., -1.]])
+        tgt = nx.array([[1., 1., 1., 1.], [-1., -1., -1., -1.]])
 
         res = ufl.fix(a)
         assert_equal(res, tgt)
@@ -56,6 +49,7 @@ class TestUfunclike(TestCase):
                 res = nx.array(data, copy=True).view(cls)
                 res.metadata = metadata
                 return res
+
             def __array_wrap__(self, obj, context=None):
                 obj.metadata = self.metadata
                 return obj
@@ -63,8 +57,8 @@ class TestUfunclike(TestCase):
         a = nx.array([1.1, -1.1])
         m = MyArray(a, metadata='foo')
         f = ufl.fix(m)
-        assert_array_equal(f, nx.array([1,-1]))
-        assert isinstance(f, MyArray)
+        assert_array_equal(f, nx.array([1, -1]))
+        assert_(isinstance(f, MyArray))
         assert_equal(f.metadata, 'foo')
 
 if __name__ == "__main__":

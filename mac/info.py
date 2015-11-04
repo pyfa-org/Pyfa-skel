@@ -1,4 +1,4 @@
 base = "Contents/Resources"
 os = "mac"
 arcname="pyfa.app"
-library=None
+library="lib/python2.7/site-packages.zip"

@@ -1,5 +1,5 @@
 /* pyconfig.h.  Generated from pyconfig.h.in by configure.  */
-/* pyconfig.h.in.  Generated from configure.in by autoheader.  */
+/* pyconfig.h.in.  Generated from configure.ac by autoheader.  */
 
 
 #ifndef Py_PYCONFIG_H
@@ -37,6 +37,9 @@
 /* Define if --enable-ipv6 is specified */
 #define ENABLE_IPV6 1
 
+/* Define if flock needs to be linked with bsd library. */
+/* #undef FLOCK_NEEDS_LIBBSD */
+
 /* Define if getpgrp() must be called as getpgrp(0). */
 /* #undef GETPGRP_HAVE_ARG */
 
@@ -52,6 +55,9 @@
 
 /* Define to 1 if you have the `alarm' function. */
 #define HAVE_ALARM 1
+
+/* Define to 1 if you have the <alloca.h> header file. */
+#define HAVE_ALLOCA_H 1
 
 /* Define this if your time.h defines altzone. */
 /* #undef HAVE_ALTZONE */
@@ -80,6 +86,9 @@
 /* Define if nice() returns success/failure instead of the new priority. */
 /* #undef HAVE_BROKEN_NICE */
 
+/* Define if the system reports an invalid PIPE_BUF value. */
+/* #undef HAVE_BROKEN_PIPE_BUF */
+
 /* Define if poll() sets errno on invalid file descriptors. */
 /* #undef HAVE_BROKEN_POLL */
 
@@ -92,11 +101,14 @@
 /* define to 1 if your sem_getvalue is broken. */
 #define HAVE_BROKEN_SEM_GETVALUE 1
 
+/* Define if `unsetenv` does not return an int. */
+/* #undef HAVE_BROKEN_UNSETENV */
+
 /* Define this if you have the type _Bool. */
 #define HAVE_C99_BOOL 1
 
-/* Define to 1 if you have the `chflags' function. */
-/* #undef HAVE_CHFLAGS */
+/* Define to 1 if you have the 'chflags' function. */
+#define HAVE_CHFLAGS 1
 
 /* Define to 1 if you have the `chown' function. */
 #define HAVE_CHOWN 1
@@ -153,10 +165,10 @@
 /* Define to 1 if you have the device macros. */
 #define HAVE_DEVICE_MACROS 1
 
-/* Define if we have /dev/ptc. */
+/* Define to 1 if you have the /dev/ptc device file. */
 /* #undef HAVE_DEV_PTC */
 
-/* Define if we have /dev/ptmx. */
+/* Define to 1 if you have the /dev/ptmx device file. */
 #define HAVE_DEV_PTMX 1
 
 /* Define to 1 if you have the <direct.h> header file. */
@@ -214,7 +226,7 @@
 /* Define to 1 if you have the `finite' function. */
 #define HAVE_FINITE 1
 
-/* Define if you have the 'flock' function. */
+/* Define to 1 if you have the `flock' function. */
 #define HAVE_FLOCK 1
 
 /* Define to 1 if you have the `fork' function. */
@@ -258,7 +270,7 @@
 
 /* Define if we can use gcc inline assembler to get and set x87 control word
    */
-/* #undef HAVE_GCC_ASM_FOR_X87 */
+#define HAVE_GCC_ASM_FOR_X87 1
 
 /* Define if you have the getaddrinfo function. */
 #define HAVE_GETADDRINFO 1
@@ -268,6 +280,9 @@
 
 /* Define this if you have flockfile(), getc_unlocked(), and funlockfile() */
 #define HAVE_GETC_UNLOCKED 1
+
+/* Define to 1 if you have the `getentropy' function. */
+/* #undef HAVE_GETENTROPY */
 
 /* Define to 1 if you have the `getgroups' function. */
 #define HAVE_GETGROUPS 1
@@ -362,6 +377,12 @@
 /* Define to 1 if you have the `initgroups' function. */
 #define HAVE_INITGROUPS 1
 
+/* Define if your compiler provides int32_t. */
+#define HAVE_INT32_T 1
+
+/* Define if your compiler provides int64_t. */
+#define HAVE_INT64_T 1
+
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
 
@@ -386,8 +407,8 @@
    Solaris and Linux, the necessary defines are already defined.) */
 /* #undef HAVE_LARGEFILE_SUPPORT */
 
-/* Define to 1 if you have the `lchflags' function. */
-/* #undef HAVE_LCHFLAGS */
+/* Define to 1 if you have the 'lchflags' function. */
+#define HAVE_LCHFLAGS 1
 
 /* Define to 1 if you have the `lchmod' function. */
 #define HAVE_LCHMOD 1
@@ -408,7 +429,7 @@
 /* #undef HAVE_LIBIEEE */
 
 /* Define to 1 if you have the <libintl.h> header file. */
-/* #undef HAVE_LIBINTL_H */
+#define HAVE_LIBINTL_H 1
 
 /* Define if you have the readline library (-lreadline). */
 #define HAVE_LIBREADLINE 1
@@ -458,6 +479,9 @@
 /* Define to 1 if you have the `mktime' function. */
 #define HAVE_MKTIME 1
 
+/* Define to 1 if you have the `mmap' function. */
+#define HAVE_MMAP 1
+
 /* Define to 1 if you have the `mremap' function. */
 /* #undef HAVE_MREMAP */
 
@@ -503,6 +527,9 @@
 /* Define if you have GNU PTH threads. */
 /* #undef HAVE_PTH */
 
+/* Define to 1 if you have the `pthread_atfork' function. */
+#define HAVE_PTHREAD_ATFORK 1
+
 /* Defined for Solaris 2.6 bug in pthread header. */
 /* #undef HAVE_PTHREAD_DESTRUCTOR */
 
@@ -521,6 +548,9 @@
 /* Define to 1 if you have the `putenv' function. */
 #define HAVE_PUTENV 1
 
+/* Define if the libcrypto has RAND_egd */
+#define HAVE_RAND_EGD 1
+
 /* Define to 1 if you have the `readlink' function. */
 #define HAVE_READLINK 1
 
@@ -531,7 +561,7 @@
 #define HAVE_RL_CALLBACK 1
 
 /* Define if you can turn off readline's signal handling. */
-/* #undef HAVE_RL_CATCH_SIGNAL */
+#define HAVE_RL_CATCH_SIGNAL 1
 
 /* Define if you have readline 2.2 */
 #define HAVE_RL_COMPLETION_APPEND_CHARACTER 1
@@ -540,7 +570,7 @@
 #define HAVE_RL_COMPLETION_DISPLAY_MATCHES_HOOK 1
 
 /* Define if you have readline 4.2 */
-/* #undef HAVE_RL_COMPLETION_MATCHES */
+#define HAVE_RL_COMPLETION_MATCHES 1
 
 /* Define if you have rl_completion_suppress_append */
 /* #undef HAVE_RL_COMPLETION_SUPPRESS_APPEND */
@@ -679,7 +709,7 @@
 /* #undef HAVE_STROPTS_H */
 
 /* Define to 1 if `st_birthtime' is a member of `struct stat'. */
-/* #undef HAVE_STRUCT_STAT_ST_BIRTHTIME */
+#define HAVE_STRUCT_STAT_ST_BIRTHTIME 1
 
 /* Define to 1 if `st_blksize' is a member of `struct stat'. */
 #define HAVE_STRUCT_STAT_ST_BLKSIZE 1
@@ -838,6 +868,12 @@
 
 /* Define this if you have tcl and TCL_UTF_MAX==6 */
 /* #undef HAVE_UCS4_TCL */
+
+/* Define if your compiler provides uint32_t. */
+#define HAVE_UINT32_T 1
+
+/* Define if your compiler provides uint64_t. */
+#define HAVE_UINT64_T 1
 
 /* Define to 1 if the system has the type `uintptr_t'. */
 #define HAVE_UINTPTR_T 1
@@ -1081,7 +1117,7 @@
 #define WITH_DYLD 1
 
 /* Define to 1 if libintl is needed for locale functions. */
-/* #undef WITH_LIBINTL */
+#define WITH_LIBINTL 1
 
 /* Define if you want to produce an OpenStep/Rhapsody framework (shared
    library plus accessory files). */
@@ -1131,6 +1167,9 @@
 
 /* This must be defined on some systems to enable large file support. */
 #define _LARGEFILE_SOURCE 1
+
+/* This must be defined on AIX systems to enable large file support. */
+/* #undef _LARGE_FILES */
 
 /* Define to 1 if on MINIX. */
 /* #undef _MINIX */
