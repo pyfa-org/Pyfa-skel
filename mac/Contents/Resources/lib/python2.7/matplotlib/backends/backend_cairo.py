@@ -18,11 +18,7 @@ Naming Conventions
   * functions underscore_separated
 """
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
-import six
-
+from __future__ import division
 import os, sys, warnings, gzip
 
 import numpy as np
@@ -30,22 +26,15 @@ import numpy as np
 def _fn_name(): return sys._getframe(1).f_code.co_name
 
 try:
-    import cairocffi as cairo
+   import cairo
 except ImportError:
-    try:
-        import cairo
-    except ImportError:
-        raise ImportError("Cairo backend requires that cairocffi or pycairo is installed.")
-    else:
-        HAS_CAIRO_CFFI = False
-else:
-    HAS_CAIRO_CFFI = True
+   raise ImportError("Cairo backend requires that pycairo is installed.")
 
 _version_required = (1,2,0)
 if cairo.version_info < _version_required:
-    raise ImportError ("Pycairo %d.%d.%d is installed\n"
-                       "Pycairo %d.%d.%d or later is required"
-                        % (cairo.version_info + _version_required))
+   raise ImportError ("Pycairo %d.%d.%d is installed\n"
+                     "Pycairo %d.%d.%d or later is required"
+                     % (cairo.version_info + _version_required))
 backend_version = cairo.version
 del _version_required
 
@@ -57,6 +46,7 @@ from matplotlib.mathtext     import MathTextParser
 from matplotlib.path         import Path
 from matplotlib.transforms   import Bbox, Affine2D
 from matplotlib.font_manager import ttfFontProperty
+from matplotlib import rcParams
 
 _debug = False
 #_debug = True
@@ -99,7 +89,7 @@ class RendererCairo(RendererBase):
     def __init__(self, dpi):
         """
         """
-        if _debug: print('%s.%s()' % (self.__class__.__name__, _fn_name()))
+        if _debug: print '%s.%s()' % (self.__class__.__name__, _fn_name())
         self.dpi = dpi
         self.gc = GraphicsContextCairo (renderer=self)
         self.text_ctx = cairo.Context (
@@ -121,13 +111,13 @@ class RendererCairo(RendererBase):
         # font transform?
 
 
-    def _fill_and_stroke (self, ctx, fill_c, alpha, alpha_overrides):
+    def _fill_and_stroke (self, ctx, fill_c, alpha):
         if fill_c is not None:
             ctx.save()
-            if len(fill_c) == 3 or alpha_overrides:
+            if len(fill_c) == 3:
                 ctx.set_source_rgba (fill_c[0], fill_c[1], fill_c[2], alpha)
             else:
-                ctx.set_source_rgba (fill_c[0], fill_c[1], fill_c[2], fill_c[3])
+                ctx.set_source_rgba (fill_c[0], fill_c[1], fill_c[2], alpha*fill_c[3])
             ctx.fill_preserve()
             ctx.restore()
         ctx.stroke()
@@ -137,8 +127,6 @@ class RendererCairo(RendererBase):
         for points, code in path.iter_segments(transform):
             if code == Path.MOVETO:
                 ctx.move_to(*points)
-            elif code == Path.CLOSEPOLY:
-                ctx.close_path()
             elif code == Path.LINETO:
                 ctx.line_to(*points)
             elif code == Path.CURVE3:
@@ -147,6 +135,8 @@ class RendererCairo(RendererBase):
                              points[2], points[3])
             elif code == Path.CURVE4:
                 ctx.curve_to(*points)
+            elif code == Path.CLOSEPOLY:
+                ctx.close_path()
 
 
     def draw_path(self, gc, path, transform, rgbFace=None):
@@ -161,65 +151,60 @@ class RendererCairo(RendererBase):
         ctx.new_path()
         self.convert_path(ctx, path, transform)
 
-        self._fill_and_stroke(ctx, rgbFace, gc.get_alpha(), gc.get_forced_alpha())
+        self._fill_and_stroke(ctx, rgbFace, gc.get_alpha())
 
     def draw_image(self, gc, x, y, im):
         # bbox - not currently used
-        if _debug: print('%s.%s()' % (self.__class__.__name__, _fn_name()))
+        if _debug: print '%s.%s()' % (self.__class__.__name__, _fn_name())
+
+        clippath, clippath_trans = gc.get_clip_path()
 
         im.flipud_out()
 
         rows, cols, buf = im.color_conv (BYTE_FORMAT)
         surface = cairo.ImageSurface.create_for_data (
                       buf, cairo.FORMAT_ARGB32, cols, rows, cols*4)
-        ctx = gc.ctx
-        y = self.height - y - rows
-
+        # function does not pass a 'gc' so use renderer.ctx
+        ctx = self.gc.ctx
         ctx.save()
+        if clippath is not None:
+            ctx.new_path()
+            RendererCairo.convert_path(ctx, clippath, clippath_trans)
+            ctx.clip()
+        y = self.height - y - rows
         ctx.set_source_surface (surface, x, y)
-        if gc.get_alpha() != 1.0:
-            ctx.paint_with_alpha(gc.get_alpha())
-        else:
-            ctx.paint()
+        ctx.paint()
         ctx.restore()
 
         im.flipud_out()
 
-    def draw_text(self, gc, x, y, s, prop, angle, ismath=False, mtext=None):
+    def draw_text(self, gc, x, y, s, prop, angle, ismath=False):
         # Note: x,y are device/display coords, not user-coords, unlike other
         # draw_* methods
-        if _debug: print('%s.%s()' % (self.__class__.__name__, _fn_name()))
+        if _debug: print '%s.%s()' % (self.__class__.__name__, _fn_name())
 
         if ismath:
-            self._draw_mathtext(gc, x, y, s, prop, angle)
+           self._draw_mathtext(gc, x, y, s, prop, angle)
 
         else:
-            ctx = gc.ctx
-            ctx.new_path()
-            ctx.move_to (x, y)
-            ctx.select_font_face (prop.get_name(),
-                                  self.fontangles [prop.get_style()],
-                                  self.fontweights[prop.get_weight()])
+           ctx = gc.ctx
+           ctx.new_path()
+           ctx.move_to (x, y)
+           ctx.select_font_face (prop.get_name(),
+                                 self.fontangles [prop.get_style()],
+                                 self.fontweights[prop.get_weight()])
 
-            size = prop.get_size_in_points() * self.dpi / 72.0
+           size = prop.get_size_in_points() * self.dpi / 72.0
 
-            ctx.save()
-            if angle:
-                ctx.rotate (-angle * np.pi / 180)
-            ctx.set_font_size (size)
-
-            if HAS_CAIRO_CFFI:
-                if not isinstance(s, six.text_type):
-                    s = six.text_type(s)
-            else:
-                if not six.PY3 and isinstance(s, six.text_type):
-                    s = s.encode("utf-8")
-
-            ctx.show_text(s)
-            ctx.restore()
+           ctx.save()
+           if angle:
+              ctx.rotate (-angle * np.pi / 180)
+           ctx.set_font_size (size)
+           ctx.show_text (s.encode("utf-8"))
+           ctx.restore()
 
     def _draw_mathtext(self, gc, x, y, s, prop, angle):
-        if _debug: print('%s.%s()' % (self.__class__.__name__, _fn_name()))
+        if _debug: print '%s.%s()' % (self.__class__.__name__, _fn_name())
 
         ctx = gc.ctx
         width, height, descent, glyphs, rects = self.mathtext_parser.parse(
@@ -228,48 +213,46 @@ class RendererCairo(RendererBase):
         ctx.save()
         ctx.translate(x, y)
         if angle:
-            ctx.rotate (-angle * np.pi / 180)
+           ctx.rotate (-angle * np.pi / 180)
 
         for font, fontsize, s, ox, oy in glyphs:
-            ctx.new_path()
-            ctx.move_to(ox, oy)
+           ctx.new_path()
+           ctx.move_to(ox, oy)
 
-            fontProp = ttfFontProperty(font)
-            ctx.save()
-            ctx.select_font_face (fontProp.name,
-                                  self.fontangles [fontProp.style],
-                                  self.fontweights[fontProp.weight])
+           fontProp = ttfFontProperty(font)
+           ctx.save()
+           ctx.select_font_face (fontProp.name,
+                                 self.fontangles [fontProp.style],
+                                 self.fontweights[fontProp.weight])
 
-            size = fontsize * self.dpi / 72.0
-            ctx.set_font_size(size)
-            if isinstance(s, six.text_type):
-                s = s.encode("utf-8")
-            ctx.show_text(s)
-            ctx.restore()
+           size = fontsize * self.dpi / 72.0
+           ctx.set_font_size(size)
+           ctx.show_text(s.encode("utf-8"))
+           ctx.restore()
 
         for ox, oy, w, h in rects:
-            ctx.new_path()
-            ctx.rectangle (ox, oy, w, h)
-            ctx.set_source_rgb (0, 0, 0)
-            ctx.fill_preserve()
+           ctx.new_path()
+           ctx.rectangle (ox, oy, w, h)
+           ctx.set_source_rgb (0, 0, 0)
+           ctx.fill_preserve()
 
         ctx.restore()
 
 
     def flipy(self):
-        if _debug: print('%s.%s()' % (self.__class__.__name__, _fn_name()))
+        if _debug: print '%s.%s()' % (self.__class__.__name__, _fn_name())
         return True
         #return False # tried - all draw objects ok except text (and images?)
         # which comes out mirrored!
 
 
     def get_canvas_width_height(self):
-        if _debug: print('%s.%s()' % (self.__class__.__name__, _fn_name()))
+        if _debug: print '%s.%s()' % (self.__class__.__name__, _fn_name())
         return self.width, self.height
 
 
     def get_text_width_height_descent(self, s, prop, ismath):
-        if _debug: print('%s.%s()' % (self.__class__.__name__, _fn_name()))
+        if _debug: print '%s.%s()' % (self.__class__.__name__, _fn_name())
         if ismath:
             width, height, descent, fonts, used_characters = self.mathtext_parser.parse(
                s, self.dpi, prop)
@@ -298,15 +281,13 @@ class RendererCairo(RendererBase):
 
 
     def new_gc(self):
-        if _debug: print('%s.%s()' % (self.__class__.__name__, _fn_name()))
+        if _debug: print '%s.%s()' % (self.__class__.__name__, _fn_name())
         self.gc.ctx.save()
-        self.gc._alpha = 1.0
-        self.gc._forced_alpha = False # if True, _alpha overrides A from RGBA
         return self.gc
 
 
     def points_to_pixels(self, points):
-        if _debug: print('%s.%s()' % (self.__class__.__name__, _fn_name()))
+        if _debug: print '%s.%s()' % (self.__class__.__name__, _fn_name())
         return points/72.0 * self.dpi
 
 
@@ -337,10 +318,7 @@ class GraphicsContextCairo(GraphicsContextBase):
         GraphicsContextBase.set_alpha(self, alpha)
         _alpha = self.get_alpha()
         rgb = self._rgb
-        if self.get_forced_alpha():
-            self.ctx.set_source_rgba (rgb[0], rgb[1], rgb[2], _alpha)
-        else:
-            self.ctx.set_source_rgba (rgb[0], rgb[1], rgb[2], rgb[3])
+        self.ctx.set_source_rgba (rgb[0], rgb[1], rgb[2], _alpha)
 
 
     #def set_antialiased(self, b):
@@ -379,12 +357,12 @@ class GraphicsContextCairo(GraphicsContextBase):
         if dashes == None:
             self.ctx.set_dash([], 0)  # switch dashes off
         else:
-            self.ctx.set_dash(
-                list(self.renderer.points_to_pixels(np.asarray(dashes))), offset)
+            self.ctx.set_dash (
+               self.renderer.points_to_pixels (np.asarray(dashes)), offset)
 
 
-    def set_foreground(self, fg, isRGBA=None):
-        GraphicsContextBase.set_foreground(self, fg, isRGBA)
+    def set_foreground(self, fg, isRGB=None):
+        GraphicsContextBase.set_foreground(self, fg, isRGB)
         if len(self._rgb) == 3:
             self.ctx.set_source_rgb(*self._rgb)
         else:
@@ -415,17 +393,10 @@ def new_figure_manager(num, *args, **kwargs): # called by backends/__init__.py
     """
     Create a new figure manager instance
     """
-    if _debug: print('%s()' % (_fn_name()))
+    if _debug: print '%s.%s()' % (self.__class__.__name__, _fn_name())
     FigureClass = kwargs.pop('FigureClass', Figure)
     thisFig = FigureClass(*args, **kwargs)
-    return new_figure_manager_given_figure(num, thisFig)
-
-
-def new_figure_manager_given_figure(num, figure):
-    """
-    Create a new figure manager instance for the given figure.
-    """
-    canvas  = FigureCanvasCairo(figure)
+    canvas  = FigureCanvasCairo(thisFig)
     manager = FigureManagerBase(canvas, num)
     return manager
 
@@ -454,6 +425,9 @@ class FigureCanvasCairo (FigureCanvasBase):
     def print_svgz(self, fobj, *args, **kwargs):
         return self._save(fobj, 'svgz', *args, **kwargs)
 
+    def get_default_filetype(self):
+        return rcParams['cairo.format']
+
     def _save (self, fo, format, **kwargs):
         # save PDF/PS/SVG
         orientation = kwargs.get('orientation', 'portrait')
@@ -468,24 +442,24 @@ class FigureCanvasCairo (FigureCanvasBase):
                                                  width_in_points)
 
         if format == 'ps':
-            if not hasattr(cairo, 'PSSurface'):
+            if not cairo.HAS_PS_SURFACE:
                 raise RuntimeError ('cairo has not been compiled with PS '
                                     'support enabled')
             surface = cairo.PSSurface (fo, width_in_points, height_in_points)
         elif format == 'pdf':
-            if not hasattr(cairo, 'PDFSurface'):
+            if not cairo.HAS_PDF_SURFACE:
                 raise RuntimeError ('cairo has not been compiled with PDF '
                                     'support enabled')
             surface = cairo.PDFSurface (fo, width_in_points, height_in_points)
         elif format in ('svg', 'svgz'):
-            if not hasattr(cairo, 'SVGSurface'):
+            if not cairo.HAS_SVG_SURFACE:
                 raise RuntimeError ('cairo has not been compiled with SVG '
                                     'support enabled')
             if format == 'svgz':
+                filename = fo
                 if is_string_like(fo):
-                    fo = gzip.GzipFile(fo, 'wb')
-                else:
-                    fo = gzip.GzipFile(None, 'wb', fileobj=fo)
+                    fo = open(fo, 'wb')
+                fo = gzip.GzipFile(None, 'wb', fileobj=fo)
             surface = cairo.SVGSurface (fo, width_in_points, height_in_points)
         else:
            warnings.warn ("unknown format: %s" % format)
@@ -523,8 +497,3 @@ class FigureCanvasCairo (FigureCanvasBase):
 
         ctx.show_page()
         surface.finish()
-        if format == 'svgz':
-            fo.close()
-
-
-FigureCanvas = FigureCanvasCairo

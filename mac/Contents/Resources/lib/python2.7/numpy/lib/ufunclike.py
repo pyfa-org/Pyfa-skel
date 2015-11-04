@@ -1,10 +1,7 @@
 """
 Module of functions that are like ufuncs in acting on arrays and optionally
 storing results in an output array.
-
 """
-from __future__ import division, absolute_import, print_function
-
 __all__ = ['fix', 'isneginf', 'isposinf']
 
 import numpy.core.numeric as nx
@@ -174,4 +171,46 @@ def isneginf(x, y=None):
         x = nx.asarray(x)
         y = nx.empty(x.shape, dtype=nx.bool_)
     nx.logical_and(nx.isinf(x), nx.signbit(x), y)
+    return y
+
+
+_log2 = nx.log(2)
+def log2(x, y=None):
+    """
+    Return the base 2 logarithm of the input array, element-wise.
+    This function is now deprecated, use the np.log2 ufunc instead.
+
+    Parameters
+    ----------
+    x : array_like
+      Input array.
+    y : array_like
+      Optional output array with the same shape as `x`.
+
+    Returns
+    -------
+    y : ndarray
+      The logarithm to the base 2 of `x` element-wise.
+      NaNs are returned where `x` is negative.
+
+    See Also
+    --------
+    log, log1p, log10
+
+    Examples
+    --------
+    >>> np.log2([-1, 2, 4])
+    array([ NaN,   1.,   2.])
+
+    """
+    import warnings
+    msg = "numpy.lib.log2 is deprecated, use np.log2 instead."
+    warnings.warn(msg, DeprecationWarning)
+
+    x = nx.asanyarray(x)
+    if y is None:
+        y = nx.log(x)
+    else:
+        nx.log(x, y)
+    y /= _log2
     return y

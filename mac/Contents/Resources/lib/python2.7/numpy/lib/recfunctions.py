@@ -1,11 +1,11 @@
 """
 Collection of utilities to manipulate structured arrays.
 
-Most of these functions were initially implemented by John Hunter for
-matplotlib.  They have been rewritten and extended for convenience.
+Most of these functions were initially implemented by John Hunter for matplotlib.
+They have been rewritten and extended for convenience.
+
 
 """
-from __future__ import division, absolute_import, print_function
 
 import sys
 import itertools
@@ -15,20 +15,19 @@ from numpy import ndarray, recarray
 from numpy.ma import MaskedArray
 from numpy.ma.mrecords import MaskedRecords
 from numpy.lib._iotools import _is_string_like
-from numpy.compat import basestring
-
-if sys.version_info[0] < 3:
-    from future_builtins import zip
 
 _check_fill_value = np.ma.core._check_fill_value
 
-
-__all__ = [
-    'append_fields', 'drop_fields', 'find_duplicates',
-    'get_fieldstructure', 'join_by', 'merge_arrays',
-    'rec_append_fields', 'rec_drop_fields', 'rec_join',
-    'recursive_fill_fields', 'rename_fields', 'stack_arrays',
-    ]
+__all__ = ['append_fields',
+           'drop_fields',
+           'find_duplicates',
+           'get_fieldstructure',
+           'join_by',
+           'merge_arrays',
+           'rec_append_fields', 'rec_drop_fields', 'rec_join',
+           'recursive_fill_fields', 'rename_fields',
+           'stack_arrays',
+           ]
 
 
 def recursive_fill_fields(input, output):
@@ -68,6 +67,7 @@ def recursive_fill_fields(input, output):
         else:
             output[field][:len(current)] = current
     return output
+
 
 
 def get_names(adtype):
@@ -186,7 +186,7 @@ def zip_descr(seqarrays, flatten=False):
 
 def get_fieldstructure(adtype, lastname=None, parents=None,):
     """
-    Returns a dictionary with fields indexing lists of their parent fields.
+    Returns a dictionary with fields as keys and a list of parent fields as values.
 
     This function is used to simplify access to fields nested in other fields.
 
@@ -224,7 +224,8 @@ def get_fieldstructure(adtype, lastname=None, parents=None,):
         else:
             lastparent = [_ for _ in (parents.get(lastname, []) or [])]
             if lastparent:
-                lastparent.append(lastname)
+#                if (lastparent[-1] != lastname):
+                    lastparent.append(lastname)
             elif lastname:
                 lastparent = [lastname, ]
             parents[name] = lastparent or []
@@ -235,7 +236,6 @@ def _izip_fields_flat(iterable):
     """
     Returns an iterator of concatenated fields from a sequence of arrays,
     collapsing any nested structure.
-
     """
     for element in iterable:
         if isinstance(element, np.void):
@@ -248,11 +248,9 @@ def _izip_fields_flat(iterable):
 def _izip_fields(iterable):
     """
     Returns an iterator of concatenated fields from a sequence of arrays.
-
     """
     for element in iterable:
-        if (hasattr(element, '__iter__') and
-                not isinstance(element, basestring)):
+        if hasattr(element, '__iter__') and not isinstance(element, basestring):
             for f in _izip_fields(element):
                 yield f
         elif isinstance(element, np.void) and len(tuple(element)) == 1:
@@ -268,7 +266,7 @@ def izip_records(seqarrays, fill_value=None, flatten=True):
 
     Parameters
     ----------
-    seqarrays : sequence of arrays
+    seqarray : sequence of arrays
         Sequence of arrays.
     fill_value : {None, integer}
         Value used to pad shorter iterables.
@@ -289,7 +287,7 @@ def izip_records(seqarrays, fill_value=None, flatten=True):
         zipfunc = _izip_fields
     #
     try:
-        for tup in zip(*iters):
+        for tup in itertools.izip(*iters):
             yield tuple(zipfunc(tup))
     except IndexError:
         pass
@@ -319,15 +317,16 @@ def _fix_defaults(output, defaults=None):
     """
     names = output.dtype.names
     (data, mask, fill_value) = (output.data, output.mask, output.fill_value)
-    for (k, v) in (defaults or {}).items():
+    for (k, v) in (defaults or {}).iteritems():
         if k in names:
             fill_value[k] = v
             data[k][mask[k]] = v
     return output
 
 
-def merge_arrays(seqarrays, fill_value=-1, flatten=False,
-                 usemask=False, asrecarray=False):
+
+def merge_arrays(seqarrays,
+                 fill_value= -1, flatten=False, usemask=False, asrecarray=False):
     """
     Merge arrays field by field.
 
@@ -377,7 +376,7 @@ def merge_arrays(seqarrays, fill_value=-1, flatten=False,
     # Only one item in the input sequence ?
     if (len(seqarrays) == 1):
         seqarrays = np.asanyarray(seqarrays[0])
-    # Do we have a single ndarray as input ?
+    # Do we have a single ndarary as input ?
     if isinstance(seqarrays, (ndarray, np.void)):
         seqdtype = seqarrays.dtype
         if (not flatten) or \
@@ -402,7 +401,7 @@ def merge_arrays(seqarrays, fill_value=-1, flatten=False,
             seqarrays = (seqarrays,)
     else:
         # Make sure we have arrays in the input sequence
-        seqarrays = [np.asanyarray(_m) for _m in seqarrays]
+        seqarrays = map(np.asanyarray, seqarrays)
     # Find the sizes of the inputs and their maximum
     sizes = tuple(a.size for a in seqarrays)
     maxlength = max(sizes)
@@ -413,7 +412,7 @@ def merge_arrays(seqarrays, fill_value=-1, flatten=False,
     seqmask = []
     # If we expect some kind of MaskedArray, make a special loop.
     if usemask:
-        for (a, n) in zip(seqarrays, sizes):
+        for (a, n) in itertools.izip(seqarrays, sizes):
             nbmissing = (maxlength - n)
             # Get the data and mask
             data = a.ravel().__array__()
@@ -442,7 +441,7 @@ def merge_arrays(seqarrays, fill_value=-1, flatten=False,
             output = output.view(MaskedRecords)
     else:
         # Same as before, without the mask we don't need...
-        for (a, n) in zip(seqarrays, sizes):
+        for (a, n) in itertools.izip(seqarrays, sizes):
             nbmissing = (maxlength - n)
             data = a.ravel().__array__()
             if nbmissing:
@@ -463,6 +462,7 @@ def merge_arrays(seqarrays, fill_value=-1, flatten=False,
     return output
 
 
+
 def drop_fields(base, drop_names, usemask=True, asrecarray=False):
     """
     Return a new array with fields in `drop_names` dropped.
@@ -474,14 +474,13 @@ def drop_fields(base, drop_names, usemask=True, asrecarray=False):
     base : array
         Input array
     drop_names : string or sequence
-        String or sequence of strings corresponding to the names of the
-        fields to drop.
+        String or sequence of strings corresponding to the names of the fields
+        to drop.
     usemask : {False, True}, optional
         Whether to return a masked array or not.
-    asrecarray : string or sequence, optional
+    asrecarray : string or sequence
         Whether to return a recarray or a mrecarray (`asrecarray=True`) or
-        a plain ndarray or masked array with flexible dtype. The default
-        is False.
+        a plain ndarray or masked array with flexible dtype (`asrecarray=False`)
 
     Examples
     --------
@@ -502,7 +501,7 @@ def drop_fields(base, drop_names, usemask=True, asrecarray=False):
         drop_names = [drop_names, ]
     else:
         drop_names = set(drop_names)
-
+    #
     def _drop_descr(ndtype, drop_names):
         names = ndtype.names
         newdtype = []
@@ -517,11 +516,11 @@ def drop_fields(base, drop_names, usemask=True, asrecarray=False):
             else:
                 newdtype.append((name, current))
         return newdtype
-
+    #
     newdtype = _drop_descr(base.dtype, drop_names)
     if not newdtype:
         return None
-
+    #
     output = np.empty(base.shape, dtype=newdtype)
     output = recursive_fill_fields(base, output)
     return _fix_output(output, usemask=usemask, asrecarray=asrecarray)
@@ -532,6 +531,7 @@ def rec_drop_fields(base, drop_names):
     Returns a new numpy.recarray with fields in `drop_names` dropped.
     """
     return drop_fields(base, drop_names, usemask=False, asrecarray=True)
+
 
 
 def rename_fields(base, namemapper):
@@ -563,9 +563,8 @@ def rename_fields(base, namemapper):
             newname = namemapper.get(name, name)
             current = ndtype[name]
             if current.names:
-                newdtype.append(
-                    (newname, _recursive_rename_fields(current, namemapper))
-                    )
+                newdtype.append((newname,
+                                 _recursive_rename_fields(current, namemapper)))
             else:
                 newdtype.append((newname, current))
         return newdtype
@@ -573,8 +572,8 @@ def rename_fields(base, namemapper):
     return base.view(newdtype)
 
 
-def append_fields(base, names, data, dtypes=None,
-                  fill_value=-1, usemask=True, asrecarray=False):
+def append_fields(base, names, data=None, dtypes=None,
+                  fill_value= -1, usemask=True, asrecarray=False):
     """
     Add new fields to an existing array.
 
@@ -592,7 +591,7 @@ def append_fields(base, names, data, dtypes=None,
         of the new fields.
     data : array or sequence of arrays
         Array or sequence of arrays storing the fields to add to the base.
-    dtypes : sequence of datatypes, optional
+    dtypes : sequence of datatypes
         Datatype or sequence of datatypes.
         If None, the datatypes are estimated from the `data`.
     fill_value : {float}, optional
@@ -606,8 +605,8 @@ def append_fields(base, names, data, dtypes=None,
     # Check the names
     if isinstance(names, (tuple, list)):
         if len(names) != len(data):
-            msg = "The number of arrays does not match the number of names"
-            raise ValueError(msg)
+            err_msg = "The number of arrays does not match the number of names"
+            raise ValueError(err_msg)
     elif isinstance(names, basestring):
         names = [names, ]
         data = [data, ]
@@ -615,14 +614,14 @@ def append_fields(base, names, data, dtypes=None,
     if dtypes is None:
         data = [np.array(a, copy=False, subok=True) for a in data]
         data = [a.view([(name, a.dtype)]) for (name, a) in zip(names, data)]
-    else:
-        if not isinstance(dtypes, (tuple, list)):
-            dtypes = [dtypes, ]
+    elif not hasattr(dtypes, '__iter__'):
+        dtypes = [dtypes, ]
         if len(data) != len(dtypes):
             if len(dtypes) == 1:
                 dtypes = dtypes * len(data)
             else:
-                msg = "The dtypes argument must be None, a dtype, or a list."
+                msg = "The dtypes argument must be None, "\
+                      "a single dtype or a list."
                 raise ValueError(msg)
         data = [np.array(a, copy=False, subok=True, dtype=d).view([(n, d)])
                 for (a, n, d) in zip(data, names, dtypes)]
@@ -640,6 +639,7 @@ def append_fields(base, names, data, dtypes=None,
     output = recursive_fill_fields(data, output)
     #
     return _fix_output(output, usemask=usemask, asrecarray=asrecarray)
+
 
 
 def rec_append_fields(base, names, data, dtypes=None):
@@ -676,6 +676,7 @@ def rec_append_fields(base, names, data, dtypes=None):
                          asrecarray=True, usemask=False)
 
 
+
 def stack_arrays(arrays, defaults=None, usemask=True, asrecarray=False,
                  autoconvert=False):
     """
@@ -683,16 +684,16 @@ def stack_arrays(arrays, defaults=None, usemask=True, asrecarray=False,
 
     Parameters
     ----------
-    arrays : array or sequence
+    seqarrays : array or sequence
         Sequence of input arrays.
     defaults : dictionary, optional
         Dictionary mapping field names to the corresponding default values.
     usemask : {True, False}, optional
-        Whether to return a MaskedArray (or MaskedRecords is
-        `asrecarray==True`) or a ndarray.
+        Whether to return a MaskedArray (or MaskedRecords is `asrecarray==True`)
+        or a ndarray.
     asrecarray : {False, True}, optional
-        Whether to return a recarray (or MaskedRecords if `usemask==True`)
-        or just a flexible-type ndarray.
+        Whether to return a recarray (or MaskedRecords if `usemask==True`) or
+        just a flexible-type ndarray.
     autoconvert : {False, True}, optional
         Whether automatically cast the type of the field to the maximum.
 
@@ -742,7 +743,7 @@ def stack_arrays(arrays, defaults=None, usemask=True, asrecarray=False,
                         current_descr[-1] = descr[1]
                         newdescr[nameidx] = tuple(current_descr)
                 elif descr[1] != current_descr[-1]:
-                    raise TypeError("Incompatible type '%s' <> '%s'" %
+                    raise TypeError("Incompatible type '%s' <> '%s'" % \
                                     (dict(newdescr)[name], descr[1]))
     # Only one field: use concatenate
     if len(newdescr) == 1:
@@ -764,6 +765,7 @@ def stack_arrays(arrays, defaults=None, usemask=True, asrecarray=False,
     #
     return _fix_output(_fix_defaults(output, defaults),
                        usemask=usemask, asrecarray=asrecarray)
+
 
 
 def find_duplicates(a, key=None, ignoremask=True, return_index=False):
@@ -820,17 +822,19 @@ def find_duplicates(a, key=None, ignoremask=True, return_index=False):
         return duplicates
 
 
+
 def join_by(key, r1, r2, jointype='inner', r1postfix='1', r2postfix='2',
                 defaults=None, usemask=True, asrecarray=False):
     """
     Join arrays `r1` and `r2` on key `key`.
 
     The key should be either a string or a sequence of string corresponding
-    to the fields used to join the array.  An exception is raised if the
-    `key` field cannot be found in the two input arrays.  Neither `r1` nor
-    `r2` should have any duplicates along `key`: the presence of duplicates
-    will make the output quite unreliable. Note that duplicates are not
-    looked for by the algorithm.
+    to the fields used to join the array.
+    An exception is raised if the `key` field cannot be found in the two input
+    arrays.
+    Neither `r1` nor `r2` should have any duplicates along `key`: the presence
+    of duplicates will make the output quite unreliable. Note that duplicates
+    are not looked for by the algorithm.
 
     Parameters
     ----------
@@ -841,41 +845,39 @@ def join_by(key, r1, r2, jointype='inner', r1postfix='1', r2postfix='2',
         Structured arrays.
     jointype : {'inner', 'outer', 'leftouter'}, optional
         If 'inner', returns the elements common to both r1 and r2.
-        If 'outer', returns the common elements as well as the elements of
-        r1 not in r2 and the elements of not in r2.
-        If 'leftouter', returns the common elements and the elements of r1
-        not in r2.
+        If 'outer', returns the common elements as well as the elements of r1
+        not in r2 and the elements of not in r2.
+        If 'leftouter', returns the common elements and the elements of r1 not
+        in r2.
     r1postfix : string, optional
-        String appended to the names of the fields of r1 that are present
-        in r2 but absent of the key.
+        String appended to the names of the fields of r1 that are present in r2
+        but absent of the key.
     r2postfix : string, optional
-        String appended to the names of the fields of r2 that are present
-        in r1 but absent of the key.
+        String appended to the names of the fields of r2 that are present in r1
+        but absent of the key.
     defaults : {dictionary}, optional
         Dictionary mapping field names to the corresponding default values.
     usemask : {True, False}, optional
-        Whether to return a MaskedArray (or MaskedRecords is
-        `asrecarray==True`) or a ndarray.
+        Whether to return a MaskedArray (or MaskedRecords is `asrecarray==True`)
+        or a ndarray.
     asrecarray : {False, True}, optional
-        Whether to return a recarray (or MaskedRecords if `usemask==True`)
-        or just a flexible-type ndarray.
+        Whether to return a recarray (or MaskedRecords if `usemask==True`) or
+        just a flexible-type ndarray.
 
     Notes
     -----
     * The output is sorted along the key.
-    * A temporary array is formed by dropping the fields not in the key for
-      the two arrays and concatenating the result. This array is then
-      sorted, and the common entries selected. The output is constructed by
-      filling the fields with the selected entries. Matching is not
-      preserved if there are some duplicates...
+    * A temporary array is formed by dropping the fields not in the key for the
+      two arrays and concatenating the result. This array is then sorted, and
+      the common entries selected. The output is constructed by filling the fields
+      with the selected entries. Matching is not preserved if there are some
+      duplicates...
 
     """
     # Check jointype
     if jointype not in ('inner', 'outer', 'leftouter'):
-        raise ValueError(
-                "The 'jointype' argument should be in 'inner', "
-                "'outer' or 'leftouter' (got '%s' instead)" % jointype
-                )
+        raise ValueError("The 'jointype' argument should be in 'inner', "\
+                         "'outer' or 'leftouter' (got '%s' instead)" % jointype)
     # If we have a single key, put it in a tuple
     if isinstance(key, basestring):
         key = (key,)
@@ -890,17 +892,8 @@ def join_by(key, r1, r2, jointype='inner', r1postfix='1', r2postfix='2',
     # Make sure we work with ravelled arrays
     r1 = r1.ravel()
     r2 = r2.ravel()
-    # Fixme: nb2 below is never used. Commenting out for pyflakes.
-    # (nb1, nb2) = (len(r1), len(r2))
-    nb1 = len(r1)
+    (nb1, nb2) = (len(r1), len(r2))
     (r1names, r2names) = (r1.dtype.names, r2.dtype.names)
-
-    # Check the names for collision
-    if (set.intersection(set(r1names), set(r2names)).difference(key) and
-            not (r1postfix or r2postfix)):
-        msg = "r1 and r2 contain common names, r1postfix and r2postfix "
-        msg += "can't be empty"
-        raise ValueError(msg)
 
     # Make temporary arrays of just the keys
     r1k = drop_fields(r1, [n for n in r1names if n not in key])
@@ -944,7 +937,7 @@ def join_by(key, r1, r2, jointype='inner', r1postfix='1', r2postfix='2',
         name = desc[0]
         # Have we seen the current name already ?
         if name in names:
-            nameidx = ndtype.index(desc)
+            nameidx = names.index(name)
             current = ndtype[nameidx]
             # The current field is part of the key: take the largest dtype
             if name in key:
@@ -960,15 +953,14 @@ def join_by(key, r1, r2, jointype='inner', r1postfix='1', r2postfix='2',
             ndtype.append(desc)
     # Revert the elements to tuples
     ndtype = [tuple(_) for _ in ndtype]
-    # Find the largest nb of common fields :
-    # r1cmn and r2cmn should be equal, but...
+    # Find the largest nb of common fields : r1cmn and r2cmn should be equal, but...
     cmn = max(r1cmn, r2cmn)
     # Construct an empty array
     output = ma.masked_all((cmn + r1spc + r2spc,), dtype=ndtype)
     names = output.dtype.names
     for f in r1names:
         selected = s1[f]
-        if f not in names or (f in r2names and not r2postfix and f not in key):
+        if f not in names:
             f += r1postfix
         current = output[f]
         current[:r1cmn] = selected[:r1cmn]
@@ -976,7 +968,7 @@ def join_by(key, r1, r2, jointype='inner', r1postfix='1', r2postfix='2',
             current[cmn:cmn + r1spc] = selected[r1cmn:]
     for f in r2names:
         selected = s2[f]
-        if f not in names or (f in r1names and not r1postfix and f not in key):
+        if f not in names:
             f += r2postfix
         current = output[f]
         current[:r2cmn] = selected[:r2cmn]

@@ -6,10 +6,10 @@ Random Number Generation
 ==================== =========================================================
 Utility functions
 ==============================================================================
-random_sample        Uniformly distributed floats over ``[0, 1)``.
-random               Alias for `random_sample`.
+random               Uniformly distributed values of a given shape.
 bytes                Uniformly distributed random bytes.
 random_integers      Uniformly distributed integers in a given range.
+random_sample        Uniformly distributed floats in a given range.
 permutation          Randomly permute a sequence / generate a random sequence.
 shuffle              Randomly permute a sequence in place.
 seed                 Seed the random number generator.
@@ -82,7 +82,6 @@ set_state            Set state of generator.
 ==================== =========================================================
 
 """
-from __future__ import division, absolute_import, print_function
 
 depends = ['core']
 

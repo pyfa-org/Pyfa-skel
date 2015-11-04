@@ -1,41 +1,36 @@
-from __future__ import division, absolute_import, print_function
-
+from numpy.testing import *
 from numpy import array
-from numpy.compat import long
-from numpy.testing import run_module_suite, assert_, assert_raises, dec
 import util
 
-
 class TestReturnComplex(util.F2PyTest):
-
     def check_function(self, t):
         tname = t.__doc__.split()[0]
-        if tname in ['t0', 't8', 's0', 's8']:
+        if tname in ['t0','t8','s0','s8']:
             err = 1e-5
         else:
             err = 0.0
-        assert_(abs(t(234j) - 234.0j) <= err)
-        assert_(abs(t(234.6) - 234.6) <= err)
-        assert_(abs(t(long(234)) - 234.0) <= err)
-        assert_(abs(t(234.6 + 3j) - (234.6 + 3j)) <= err)
-        #assert_( abs(t('234')-234.)<=err)
-        #assert_( abs(t('234.6')-234.6)<=err)
-        assert_(abs(t(-234) + 234.) <= err)
-        assert_(abs(t([234]) - 234.) <= err)
-        assert_(abs(t((234,)) - 234.) <= err)
-        assert_(abs(t(array(234)) - 234.) <= err)
-        assert_(abs(t(array(23 + 4j, 'F')) - (23 + 4j)) <= err)
-        assert_(abs(t(array([234])) - 234.) <= err)
-        assert_(abs(t(array([[234]])) - 234.) <= err)
-        assert_(abs(t(array([234], 'b')) + 22.) <= err)
-        assert_(abs(t(array([234], 'h')) - 234.) <= err)
-        assert_(abs(t(array([234], 'i')) - 234.) <= err)
-        assert_(abs(t(array([234], 'l')) - 234.) <= err)
-        assert_(abs(t(array([234], 'q')) - 234.) <= err)
-        assert_(abs(t(array([234], 'f')) - 234.) <= err)
-        assert_(abs(t(array([234], 'd')) - 234.) <= err)
-        assert_(abs(t(array([234 + 3j], 'F')) - (234 + 3j)) <= err)
-        assert_(abs(t(array([234], 'D')) - 234.) <= err)
+        assert abs(t(234j)-234.0j)<=err
+        assert abs(t(234.6)-234.6)<=err
+        assert abs(t(234l)-234.0)<=err
+        assert abs(t(234.6+3j)-(234.6+3j))<=err
+        #assert abs(t('234')-234.)<=err
+        #assert abs(t('234.6')-234.6)<=err
+        assert abs(t(-234)+234.)<=err
+        assert abs(t([234])-234.)<=err
+        assert abs(t((234,))-234.)<=err
+        assert abs(t(array(234))-234.)<=err
+        assert abs(t(array(23+4j,'F'))-(23+4j))<=err
+        assert abs(t(array([234]))-234.)<=err
+        assert abs(t(array([[234]]))-234.)<=err
+        assert abs(t(array([234],'b'))+22.)<=err
+        assert abs(t(array([234],'h'))-234.)<=err
+        assert abs(t(array([234],'i'))-234.)<=err
+        assert abs(t(array([234],'l'))-234.)<=err
+        assert abs(t(array([234],'q'))-234.)<=err
+        assert abs(t(array([234],'f'))-234.)<=err
+        assert abs(t(array([234],'d'))-234.)<=err
+        assert abs(t(array([234+3j],'F'))-(234+3j))<=err
+        assert abs(t(array([234],'D'))-234.)<=err
 
         #assert_raises(TypeError, t, array([234], 'a1'))
         assert_raises(TypeError, t, 'abc')
@@ -47,8 +42,8 @@ class TestReturnComplex(util.F2PyTest):
         assert_raises(TypeError, t, {})
 
         try:
-            r = t(10 ** 400)
-            assert_(repr(r) in ['(inf+0j)', '(Infinity+0j)'], repr(r))
+            r = t(10l**400)
+            assert `r` in ['(inf+0j)','(Infinity+0j)'],`r`
         except OverflowError:
             pass
 
@@ -167,4 +162,5 @@ end module f90_return_complex
             self.check_function(getattr(self.module.f90_return_complex, name))
 
 if __name__ == "__main__":
-    run_module_suite()
+    import nose
+    nose.runmodule()

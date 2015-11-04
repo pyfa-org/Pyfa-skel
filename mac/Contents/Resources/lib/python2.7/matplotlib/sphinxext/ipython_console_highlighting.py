@@ -4,10 +4,6 @@ XXX - See what improvements can be made based on the new (as of Sept 2009)
 'pycon' lexer for the python console.  At the very least it will give better
 highlighted tracebacks.
 """
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
-import six
 
 #-----------------------------------------------------------------------------
 # Needed modules
@@ -17,18 +13,11 @@ import re
 
 # Third party
 from pygments.lexer import Lexer, do_insertions
-from pygments.lexers.agile import (PythonConsoleLexer, PythonLexer,
+from pygments.lexers.agile import (PythonConsoleLexer, PythonLexer, 
                                    PythonTracebackLexer)
 from pygments.token import Comment, Generic
 
 from sphinx import highlighting
-import matplotlib
-
-matplotlib.cbook.warn_deprecated("1.4", """
-The Sphinx extension ipython_console_highlighting has moved from
-matplotlib to IPython, and its use in matplotlib is deprecated.
-Change your import from 'matplotlib.sphinxext.ipython_directive' to
-'IPython.sphinxext.ipython_directive.""")
 
 #-----------------------------------------------------------------------------
 # Global constants
@@ -59,7 +48,7 @@ class IPythonConsoleLexer(Lexer):
 
       - It assumes the default IPython prompts, not customized ones.
     """
-
+    
     name = 'IPython console session'
     aliases = ['ipython']
     mimetypes = ['text/x-ipython-console']

@@ -1,15 +1,13 @@
-from __future__ import division, absolute_import, print_function
-
 import os
-import textwrap
+import math
 
-from numpy.testing import run_module_suite, assert_, assert_equal, dec
+from numpy.testing import *
+from numpy import array
+
 import util
-
 
 def _path(*a):
     return os.path.join(*((os.path.dirname(__file__),) + a))
-
 
 class TestMixed(util.F2PyTest):
     sources = [_path('src', 'mixed', 'foo.f'),
@@ -18,23 +16,10 @@ class TestMixed(util.F2PyTest):
 
     @dec.slow
     def test_all(self):
-        assert_(self.module.bar11() == 11)
-        assert_(self.module.foo_fixed.bar12() == 12)
-        assert_(self.module.foo_free.bar13() == 13)
-
-    @dec.slow
-    def test_docstring(self):
-        expected = """
-        a = bar11()
-
-        Wrapper for ``bar11``.
-
-        Returns
-        -------
-        a : int
-        """
-        assert_equal(self.module.bar11.__doc__,
-                     textwrap.dedent(expected).lstrip())
+        assert self.module.bar11() == 11
+        assert self.module.foo_fixed.bar12() == 12
+        assert self.module.foo_free.bar13() == 13
 
 if __name__ == "__main__":
-    run_module_suite()
+    import nose
+    nose.runmodule()

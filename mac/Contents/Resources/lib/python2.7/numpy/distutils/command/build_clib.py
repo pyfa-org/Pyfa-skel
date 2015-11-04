@@ -1,6 +1,5 @@
 """ Modified version of build_clib that handles fortran source files.
 """
-from __future__ import division, absolute_import, print_function
 
 import os
 from glob import glob
@@ -30,8 +29,6 @@ class build_clib(old_build_clib):
         ('fcompiler=', None,
          "specify the Fortran compiler type"),
         ('inplace', 'i', 'Build in-place'),
-        ('parallel=', 'j',
-         "number of parallel jobs"),
         ]
 
     boolean_options = old_build_clib.boolean_options + ['inplace']
@@ -40,26 +37,17 @@ class build_clib(old_build_clib):
         old_build_clib.initialize_options(self)
         self.fcompiler = None
         self.inplace = 0
-        self.parallel = None
-
-    def finalize_options(self):
-        if self.parallel:
-            try:
-                self.parallel = int(self.parallel)
-            except ValueError:
-                raise ValueError("--parallel/-j argument must be an integer")
-        old_build_clib.finalize_options(self)
-        self.set_undefined_options('build', ('parallel', 'parallel'))
+        return
 
     def have_f_sources(self):
         for (lib_name, build_info) in self.libraries:
-            if has_f_sources(build_info.get('sources', [])):
+            if has_f_sources(build_info.get('sources',[])):
                 return True
         return False
 
     def have_cxx_sources(self):
         for (lib_name, build_info) in self.libraries:
-            if has_cxx_sources(build_info.get('sources', [])):
+            if has_cxx_sources(build_info.get('sources',[])):
                 return True
         return False
 
@@ -74,7 +62,7 @@ class build_clib(old_build_clib):
         self.run_command('build_src')
 
         for (lib_name, build_info) in self.libraries:
-            l = build_info.get('language', None)
+            l = build_info.get('language',None)
             if l and l not in languages: languages.append(l)
 
         from distutils.ccompiler import new_compiler
@@ -93,29 +81,27 @@ class build_clib(old_build_clib):
 
         if self.have_f_sources():
             from numpy.distutils.fcompiler import new_fcompiler
-            self._f_compiler = new_fcompiler(compiler=self.fcompiler,
-                                               verbose=self.verbose,
-                                               dry_run=self.dry_run,
-                                               force=self.force,
-                                               requiref90='f90' in languages,
-                                               c_compiler=self.compiler)
-            if self._f_compiler is not None:
-                self._f_compiler.customize(self.distribution)
+            self.fcompiler = new_fcompiler(compiler=self.fcompiler,
+                                           verbose=self.verbose,
+                                           dry_run=self.dry_run,
+                                           force=self.force,
+                                           requiref90='f90' in languages,
+                                           c_compiler=self.compiler)
+            if self.fcompiler is not None:
+                self.fcompiler.customize(self.distribution)
 
                 libraries = self.libraries
                 self.libraries = None
-                self._f_compiler.customize_cmd(self)
+                self.fcompiler.customize_cmd(self)
                 self.libraries = libraries
 
-                self._f_compiler.show_customization()
-        else:
-            self._f_compiler = None
+                self.fcompiler.show_customization()
 
         self.build_libraries(self.libraries)
 
         if self.inplace:
             for l in  self.distribution.installed_libraries:
-                libname = self.compiler.library_filename(l.name)
+                libname = self.compiler.library_filename(l.name) 
                 source = os.path.join(self.build_clib, libname)
                 target =  os.path.join(l.target_dir, libname)
                 self.mkpath(l.target_dir)
@@ -135,7 +121,7 @@ class build_clib(old_build_clib):
     def build_a_library(self, build_info, lib_name, libraries):
         # default compilers
         compiler = self.compiler
-        fcompiler = self._f_compiler
+        fcompiler = self.fcompiler
 
         sources = build_info.get('sources')
         if sources is None or not is_sequence(sources):
@@ -147,7 +133,7 @@ class build_clib(old_build_clib):
         c_sources, cxx_sources, f_sources, fmodule_sources \
                    = filter_sources(sources)
         requiref90 = not not fmodule_sources or \
-                     build_info.get('language', 'c')=='f90'
+                     build_info.get('language','c')=='f90'
 
         # save source type information so that build_ext can use it.
         source_languages = []
@@ -159,14 +145,14 @@ class build_clib(old_build_clib):
 
         lib_file = compiler.library_filename(lib_name,
                                              output_dir=self.build_clib)
-        depends = sources + build_info.get('depends', [])
+        depends = sources + build_info.get('depends',[])
         if not (self.force or newer_group(depends, lib_file, 'newer')):
             log.debug("skipping '%s' library (up-to-date)", lib_name)
             return
         else:
             log.info("building '%s' library", lib_name)
 
-        config_fc = build_info.get('config_fc', {})
+        config_fc = build_info.get('config_fc',{})
         if fcompiler is not None and config_fc:
             log.info('using additional config_fc from setup script '\
                      'for fortran compiler: %s' \
@@ -188,10 +174,6 @@ class build_clib(old_build_clib):
         if (f_sources or fmodule_sources) and fcompiler is None:
             raise DistutilsError("library %s has Fortran sources"\
                   " but no Fortran compiler found" % (lib_name))
-
-        if fcompiler is not None:
-            fcompiler.extra_f77_compile_args = build_info.get('extra_f77_compile_args') or []
-            fcompiler.extra_f90_compile_args = build_info.get('extra_f90_compile_args') or []
 
         macros = build_info.get('macros')
         include_dirs = build_info.get('include_dirs')
@@ -240,7 +222,7 @@ class build_clib(old_build_clib):
                 if fcompiler.module_dir_switch is None:
                     existing_modules = glob('*.mod')
                 extra_postargs += fcompiler.module_options(\
-                    module_dirs, module_build_dir)
+                    module_dirs,module_build_dir)
 
             if fmodule_sources:
                 log.info("compiling Fortran 90 module sources")
@@ -251,7 +233,7 @@ class build_clib(old_build_clib):
                                                debug=self.debug,
                                                extra_postargs=extra_postargs)
 
-            if requiref90 and self._f_compiler.module_dir_switch is None:
+            if requiref90 and self.fcompiler.module_dir_switch is None:
                 # move new compiled F90 module files to module_build_dir
                 for f in glob('*.mod'):
                     if f in existing_modules:
@@ -287,9 +269,9 @@ class build_clib(old_build_clib):
                                    debug=self.debug)
 
         # fix library dependencies
-        clib_libraries = build_info.get('libraries', [])
+        clib_libraries = build_info.get('libraries',[])
         for lname, binfo in libraries:
             if lname in clib_libraries:
-                clib_libraries.extend(binfo.get('libraries', []))
+                clib_libraries.extend(binfo[1].get('libraries',[]))
         if clib_libraries:
             build_info['libraries'] = clib_libraries

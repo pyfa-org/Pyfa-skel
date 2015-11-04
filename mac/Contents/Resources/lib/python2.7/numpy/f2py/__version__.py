@@ -1,6 +1,4 @@
-from __future__ import division, absolute_import, print_function
-
-major = 2
+major = 1
 
 try:
     from __svn_version__ import version

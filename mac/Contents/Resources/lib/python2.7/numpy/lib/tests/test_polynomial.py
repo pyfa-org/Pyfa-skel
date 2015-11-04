@@ -1,22 +1,26 @@
-from __future__ import division, absolute_import, print_function
+"""
+>>> import numpy.core as nx
+>>> from numpy.lib.polynomial import poly1d, polydiv
 
-'''
->>> p = np.poly1d([1.,2,3])
+>>> p = poly1d([1.,2,3])
 >>> p
 poly1d([ 1.,  2.,  3.])
 >>> print(p)
    2
 1 x + 2 x + 3
->>> q = np.poly1d([3.,2,1])
+>>> q = poly1d([3.,2,1])
 >>> q
 poly1d([ 3.,  2.,  1.])
 >>> print(q)
    2
 3 x + 2 x + 1
->>> print(np.poly1d([1.89999+2j, -3j, -5.12345678, 2+1j]))
+>>> print(poly1d([1.89999+2j, -3j, -5.12345678, 2+1j]))
             3      2
 (1.9 + 2j) x - 3j x - 5.123 x + (2 + 1j)
->>> print(np.poly1d([-3, -2, -1]))
+>>> print(poly1d([100e-90, 1.234567e-9j+3, -1234.999e8]))
+       2
+1e-88 x + (3 + 1.235e-09j) x - 1.235e+11
+>>> print(poly1d([-3, -2, -1]))
     2
 -3 x - 2 x - 1
 
@@ -45,7 +49,7 @@ poly1d([  9.,  12.,  16.,   8.,   6.])
 >>> q(p)
 poly1d([  3.,  12.,  32.,  40.,  34.])
 
->>> np.asarray(p)
+>>> nx.asarray(p)
 array([ 1.,  2.,  3.])
 >>> len(p)
 2
@@ -65,124 +69,85 @@ poly1d([ 2.,  2.])
 >>> p.deriv(2)
 poly1d([ 2.])
 
->>> q = np.poly1d([1.,2,3], variable='y')
+>>> q = poly1d([1.,2,3], variable='y')
 >>> print(q)
    2
 1 y + 2 y + 3
->>> q = np.poly1d([1.,2,3], variable='lambda')
+>>> q = poly1d([1.,2,3], variable='lambda')
 >>> print(q)
         2
 1 lambda + 2 lambda + 3
 
->>> np.polydiv(np.poly1d([1,0,-1]), np.poly1d([1,1]))
+>>> polydiv(poly1d([1,0,-1]), poly1d([1,1]))
 (poly1d([ 1., -1.]), poly1d([ 0.]))
+"""
 
-'''
+from numpy.testing import *
 import numpy as np
-from numpy.testing import (
-    run_module_suite, TestCase, assert_, assert_equal, assert_array_equal,
-    assert_almost_equal, rundocs
-    )
-
 
 class TestDocs(TestCase):
     def test_doctests(self):
         return rundocs()
 
     def test_roots(self):
-        assert_array_equal(np.roots([1, 0, 0]), [0, 0])
+        assert_array_equal(np.roots([1,0,0]), [0,0])
 
     def test_str_leading_zeros(self):
-        p = np.poly1d([4, 3, 2, 1])
+        p = np.poly1d([4,3,2,1])
         p[3] = 0
         assert_equal(str(p),
                      "   2\n"
                      "3 x + 2 x + 1")
 
-        p = np.poly1d([1, 2])
+        p = np.poly1d([1,2])
         p[0] = 0
         p[1] = 0
         assert_equal(str(p), " \n0")
 
-    def test_polyfit(self):
+    def test_polyfit(self) :
         c = np.array([3., 2., 1.])
-        x = np.linspace(0, 2, 7)
-        y = np.polyval(c, x)
-        err = [1, -1, 1, -1, 1, -1, 1]
-        weights = np.arange(8, 1, -1)**2/7.0
-
+        x = np.linspace(0,2,5)
+        y = np.polyval(c,x)
         # check 1D case
-        m, cov = np.polyfit(x, y+err, 2, cov=True)
-        est = [3.8571, 0.2857, 1.619]
-        assert_almost_equal(est, m, decimal=4)
-        val0 = [[2.9388, -5.8776, 1.6327],
-                [-5.8776, 12.7347, -4.2449],
-                [1.6327, -4.2449, 2.3220]]
-        assert_almost_equal(val0, cov, decimal=4)
-
-        m2, cov2 = np.polyfit(x, y+err, 2, w=weights, cov=True)
-        assert_almost_equal([4.8927, -1.0177, 1.7768], m2, decimal=4)
-        val = [[8.7929, -10.0103, 0.9756],
-               [-10.0103, 13.6134, -1.8178],
-               [0.9756, -1.8178, 0.6674]]
-        assert_almost_equal(val, cov2, decimal=4)
-
+        assert_almost_equal(c, np.polyfit(x,y,2))
         # check 2D (n,1) case
-        y = y[:, np.newaxis]
-        c = c[:, np.newaxis]
-        assert_almost_equal(c, np.polyfit(x, y, 2))
+        y = y[:,np.newaxis]
+        c = c[:,np.newaxis]
+        assert_almost_equal(c, np.polyfit(x,y,2))
         # check 2D (n,2) case
-        yy = np.concatenate((y, y), axis=1)
-        cc = np.concatenate((c, c), axis=1)
-        assert_almost_equal(cc, np.polyfit(x, yy, 2))
-
-        m, cov = np.polyfit(x, yy + np.array(err)[:, np.newaxis], 2, cov=True)
-        assert_almost_equal(est, m[:, 0], decimal=4)
-        assert_almost_equal(est, m[:, 1], decimal=4)
-        assert_almost_equal(val0, cov[:, :, 0], decimal=4)
-        assert_almost_equal(val0, cov[:, :, 1], decimal=4)
+        yy = np.concatenate((y,y), axis=1)
+        cc = np.concatenate((c,c), axis=1)
+        assert_almost_equal(cc, np.polyfit(x,yy,2))
 
     def test_objects(self):
         from decimal import Decimal
         p = np.poly1d([Decimal('4.0'), Decimal('3.0'), Decimal('2.0')])
         p2 = p * Decimal('1.333333333333333')
-        assert_(p2[1] == Decimal("3.9999999999999990"))
+        assert p2[1] == Decimal("3.9999999999999990")
         p2 = p.deriv()
-        assert_(p2[1] == Decimal('8.0'))
+        assert p2[1] == Decimal('8.0')
         p2 = p.integ()
-        assert_(p2[3] == Decimal("1.333333333333333333333333333"))
-        assert_(p2[2] == Decimal('1.5'))
-        assert_(np.issubdtype(p2.coeffs.dtype, np.object_))
-        p = np.poly([Decimal(1), Decimal(2)])
-        assert_equal(np.poly([Decimal(1), Decimal(2)]),
-                     [1, Decimal(-3), Decimal(2)])
+        assert p2[3] == Decimal("1.333333333333333333333333333")
+        assert p2[2] == Decimal('1.5')
+        assert np.issubdtype(p2.coeffs.dtype, np.object_)
 
     def test_complex(self):
         p = np.poly1d([3j, 2j, 1j])
         p2 = p.integ()
-        assert_((p2.coeffs == [1j, 1j, 1j, 0]).all())
+        assert (p2.coeffs == [1j,1j,1j,0]).all()
         p2 = p.deriv()
-        assert_((p2.coeffs == [6j, 2j]).all())
+        assert (p2.coeffs == [6j,2j]).all()
 
     def test_integ_coeffs(self):
-        p = np.poly1d([3, 2, 1])
-        p2 = p.integ(3, k=[9, 7, 6])
-        assert_(
-            (p2.coeffs == [1/4./5., 1/3./4., 1/2./3., 9/1./2., 7, 6]).all())
+        p = np.poly1d([3,2,1])
+        p2 = p.integ(3, k=[9,7,6])
+        assert (p2.coeffs == [1/4./5.,1/3./4.,1/2./3.,9/1./2.,7,6]).all()
 
     def test_zero_dims(self):
         try:
             np.poly(np.zeros((0, 0)))
         except ValueError:
             pass
-
-    def test_poly_int_overflow(self):
-        """
-        Regression test for gh-5096.
-        """
-        v = np.arange(1, 21)
-        assert_almost_equal(np.poly(v), np.poly(np.diag(v)))
-
 
 if __name__ == "__main__":
     run_module_suite()
