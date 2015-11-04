@@ -4,20 +4,15 @@ Provides the Extension class, used to describe C/C++ extension
 modules in setup scripts.
 
 Overridden to support f2py.
-
 """
-from __future__ import division, absolute_import, print_function
 
-import sys
-import re
+__revision__ = "$Id: extension.py,v 1.1 2005/04/09 19:29:34 pearu Exp $"
+
 from distutils.extension import Extension as old_Extension
 
-if sys.version_info[0] >= 3:
-    basestring = str
-
-
-cxx_ext_re = re.compile(r'.*[.](cpp|cxx|cc)\Z', re.I).match
-fortran_pyf_ext_re = re.compile(r'.*[.](f90|f95|f77|for|ftn|f|pyf)\Z', re.I).match
+import re
+cxx_ext_re = re.compile(r'.*[.](cpp|cxx|cc)\Z',re.I).match
+fortran_pyf_ext_re = re.compile(r'.*[.](f90|f95|f77|for|ftn|f|pyf)\Z',re.I).match
 
 class Extension(old_Extension):
     def __init__ (self, name, sources,
@@ -36,10 +31,8 @@ class Extension(old_Extension):
                   language=None,
                   f2py_options=None,
                   module_dirs=None,
-                  extra_f77_compile_args=None,
-                  extra_f90_compile_args=None,
                  ):
-        old_Extension.__init__(self, name, [],
+        old_Extension.__init__(self,name, [],
                                include_dirs,
                                define_macros,
                                undef_macros,
@@ -55,13 +48,6 @@ class Extension(old_Extension):
 
         # Python 2.4 distutils new features
         self.swig_opts = swig_opts or []
-        # swig_opts is assumed to be a list. Here we handle the case where it
-        # is specified as a string instead.
-        if isinstance(self.swig_opts, basestring):
-            import warnings
-            msg = "swig_opts is specified as a string instead of a list"
-            warnings.warn(msg, SyntaxWarning)
-            self.swig_opts = self.swig_opts.split()
 
         # Python 2.3 distutils new features
         self.depends = depends or []
@@ -70,8 +56,6 @@ class Extension(old_Extension):
         # numpy_distutils features
         self.f2py_options = f2py_options or []
         self.module_dirs = module_dirs or []
-        self.extra_f77_compile_args = extra_f77_compile_args or []
-        self.extra_f90_compile_args = extra_f90_compile_args or []
 
         return
 

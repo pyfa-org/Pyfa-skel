@@ -2,75 +2,45 @@
 Python 3 compatibility tools.
 
 """
-from __future__ import division, absolute_import, print_function
 
 __all__ = ['bytes', 'asbytes', 'isfileobj', 'getexception', 'strchar',
            'unicode', 'asunicode', 'asbytes_nested', 'asunicode_nested',
-           'asstr', 'open_latin1', 'long', 'basestring', 'sixu',
-           'integer_types']
+           'asstr', 'open_latin1']
 
 import sys
 
 if sys.version_info[0] >= 3:
     import io
-
-    long = int
-    integer_types = (int,)
-    basestring = str
-    unicode = str
     bytes = bytes
-
-    def asunicode(s):
-        if isinstance(s, bytes):
-            return s.decode('latin1')
-        return str(s)
-
+    unicode = str
+    asunicode = str
     def asbytes(s):
         if isinstance(s, bytes):
             return s
-        return str(s).encode('latin1')
-
+        return s.encode('latin1')
     def asstr(s):
-        if isinstance(s, bytes):
-            return s.decode('latin1')
-        return str(s)
-
+        if isinstance(s, str):
+            return s
+        return s.decode('latin1')
     def isfileobj(f):
-        return isinstance(f, (io.FileIO, io.BufferedReader, io.BufferedWriter))
-
+        return isinstance(f, io.FileIO)
     def open_latin1(filename, mode='r'):
         return open(filename, mode=mode, encoding='iso-8859-1')
-
-    def sixu(s):
-        return s
-
     strchar = 'U'
-
-
 else:
     bytes = str
-    long = long
-    basestring = basestring
     unicode = unicode
-    integer_types = (int, long)
     asbytes = str
     asstr = str
     strchar = 'S'
-
     def isfileobj(f):
         return isinstance(f, file)
-
     def asunicode(s):
         if isinstance(s, unicode):
             return s
-        return str(s).decode('ascii')
-
+        return s.decode('ascii')
     def open_latin1(filename, mode='r'):
         return open(filename, mode=mode)
-
-    def sixu(s):
-        return unicode(s, 'unicode_escape')
-
 
 def getexception():
     return sys.exc_info()[1]

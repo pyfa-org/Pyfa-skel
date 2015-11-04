@@ -1,11 +1,10 @@
 #=======================================================================
-
 """
 This is a sample set of units for use with testing unit conversion
 of matplotlib routines.  These are used because they use very strict
 enforcement of unitized data which will test the entire spectrum of how
 unitized data might be used (it is not always meaningful to convert to
-a float without specific units given).
+a float without specific units given).  
 
 UnitDbl is essentially a unitized floating point number.  It has a
 minimal set of supported units (enough for testing purposes).  All
@@ -31,24 +30,15 @@ measurement of time since a delta-t in one frame may not be the same in another.
 """
 
 #=======================================================================
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+from Duration import Duration
+from Epoch import Epoch
+from UnitDbl import UnitDbl
 
-import six
+from StrConverter import StrConverter
+from EpochConverter import EpochConverter
+from UnitDblConverter import UnitDblConverter
 
-from .Duration import Duration
-from .Epoch import Epoch
-from .UnitDbl import UnitDbl
-
-from .Duration import Duration
-from .Epoch import Epoch
-from .UnitDbl import UnitDbl
-
-from .StrConverter import StrConverter
-from .EpochConverter import EpochConverter
-from .UnitDblConverter import UnitDblConverter
-
-from .UnitDblFormatter import UnitDblFormatter
+from UnitDblFormatter import UnitDblFormatter
 
 #=======================================================================
 
@@ -89,3 +79,4 @@ min = UnitDbl( 1.0, "min" )
 hr = UnitDbl( 1.0, "hour" )
 day = UnitDbl( 24.0, "hour" )
 sec = UnitDbl( 1.0, "sec" )
+

@@ -1,6 +1,5 @@
-from __future__ import division, absolute_import, print_function
-
-from numpy.testing import TestCase, run_module_suite, assert_equal
+import sys
+from numpy.testing import *
 from pyrex_ext.primes import primes
 
 class TestPrimes(TestCase):

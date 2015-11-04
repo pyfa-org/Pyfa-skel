@@ -1,19 +1,16 @@
-"""Machine limits for Float32 and Float64 and (long double) if available...
-
+""" Machine limits for Float32 and Float64 and (long double) if available...
 """
-from __future__ import division, absolute_import, print_function
 
-__all__ = ['finfo', 'iinfo']
+__all__ = ['finfo','iinfo']
 
-from .machar import MachAr
-from . import numeric
-from . import numerictypes as ntypes
-from .numeric import array
+from machar import MachAr
+import numeric
+import numerictypes as ntypes
+from numeric import array
 
 def _frz(a):
     """fix rank-0 --> rank-1"""
-    if a.ndim == 0:
-        a.shape = (1,)
+    if a.ndim == 0: a.shape = (1,)
     return a
 
 _convert_to_float = {
@@ -30,21 +27,18 @@ class finfo(object):
 
     Attributes
     ----------
-    eps : float
-        The smallest representable positive number such that
-        ``1.0 + eps != 1.0``.  Type of `eps` is an appropriate floating
-        point type.
+    eps : floating point number of the appropriate type
+        The smallest representable number such that ``1.0 + eps != 1.0``.
     epsneg : floating point number of the appropriate type
-        The smallest representable positive number such that
-        ``1.0 - epsneg != 1.0``.
+        The smallest representable number such that ``1.0 - epsneg != 1.0``.
     iexp : int
         The number of bits in the exponent portion of the floating point
         representation.
     machar : MachAr
-        The object which calculated these parameters and holds more
-        detailed information.
+        The object which calculated these parameters and holds more detailed
+        information.
     machep : int
-        The exponent that yields `eps`.
+        The exponent that yields ``eps``.
     max : floating point number of the appropriate type
         The largest representable number.
     maxexp : int
@@ -52,28 +46,27 @@ class finfo(object):
     min : floating point number of the appropriate type
         The smallest representable number, typically ``-max``.
     minexp : int
-        The most negative power of the base (2) consistent with there
-        being no leading 0's in the mantissa.
+        The most negative power of the base (2) consistent with there being
+        no leading 0's in the mantissa.
     negep : int
-        The exponent that yields `epsneg`.
+        The exponent that yields ``epsneg``.
     nexp : int
         The number of bits in the exponent including its sign and bias.
     nmant : int
         The number of bits in the mantissa.
     precision : int
-        The approximate number of decimal digits to which this kind of
-        float is precise.
+        The approximate number of decimal digits to which this kind of float
+        is precise.
     resolution : floating point number of the appropriate type
-        The approximate decimal resolution of this type, i.e.,
+        The approximate decimal resolution of this type, i.e.
         ``10**-precision``.
-    tiny : float
-        The smallest positive usable number.  Type of `tiny` is an
-        appropriate floating point type.
+    tiny : floating point number of the appropriate type
+        The smallest-magnitude usable number.
 
     Parameters
     ----------
-    dtype : float, dtype, or instance
-        Kind of floating point data-type about which to get information.
+    dtype : floating point type, dtype, or instance
+        The kind of floating point data type to get information about.
 
     See Also
     --------
@@ -82,10 +75,10 @@ class finfo(object):
 
     Notes
     -----
-    For developers of NumPy: do not instantiate this at the module level.
-    The initial calculation of these parameters is expensive and negatively
-    impacts import times.  These objects are cached, so calling ``finfo()``
-    repeatedly inside your functions is not a problem.
+    For developers of NumPy: do not instantiate this at the module level. The
+    initial calculation of these parameters is expensive and negatively impacts
+    import times. These objects are cached, so calling ``finfo()`` repeatedly
+    inside your functions is not a problem.
 
     """
 
@@ -98,7 +91,7 @@ class finfo(object):
             # In case a float instance was given
             dtype = numeric.dtype(type(dtype))
 
-        obj = cls._finfo_cache.get(dtype, None)
+        obj = cls._finfo_cache.get(dtype,None)
         if obj is not None:
             return obj
         dtypes = [dtype]
@@ -107,8 +100,8 @@ class finfo(object):
             dtypes.append(newdtype)
             dtype = newdtype
         if not issubclass(dtype, numeric.inexact):
-            raise ValueError("data type %r not inexact" % (dtype))
-        obj = cls._finfo_cache.get(dtype, None)
+            raise ValueError, "data type %r not inexact" % (dtype)
+        obj = cls._finfo_cache.get(dtype,None)
         if obj is not None:
             return obj
         if not issubclass(dtype, numeric.floating):
@@ -116,7 +109,7 @@ class finfo(object):
             if newdtype is not dtype:
                 dtypes.append(newdtype)
                 dtype = newdtype
-        obj = cls._finfo_cache.get(dtype, None)
+        obj = cls._finfo_cache.get(dtype,None)
         if obj is not None:
             return obj
         obj = object.__new__(cls)._init(dtype)
@@ -138,12 +131,8 @@ class finfo(object):
             itype = ntypes.longlong
             fmt = '%s'
             precname = 'long double'
-        elif dtype is ntypes.half:
-            itype = ntypes.int16
-            fmt = '%12.5e'
-            precname = 'half'
         else:
-            raise ValueError(repr(dtype))
+            raise ValueError, repr(dtype)
 
         machar = MachAr(lambda v:array([v], dtype),
                         lambda v:_frz(v.astype(itype))[0],
@@ -152,11 +141,11 @@ class finfo(object):
                         'numpy %s precision floating point number' % precname)
 
         for word in ['precision', 'iexp',
-                     'maxexp', 'minexp', 'negep',
+                     'maxexp','minexp','negep',
                      'machep']:
-            setattr(self, word, getattr(machar, word))
-        for word in ['tiny', 'resolution', 'epsneg']:
-            setattr(self, word, getattr(machar, word).flat[0])
+            setattr(self,word,getattr(machar, word))
+        for word in ['tiny','resolution','epsneg']:
+            setattr(self,word,getattr(machar, word).flat[0])
         self.max = machar.huge.flat[0]
         self.min = -self.max
         self.eps = machar.eps.flat[0]
@@ -171,28 +160,20 @@ class finfo(object):
         return self
 
     def __str__(self):
-        fmt = (
-            'Machine parameters for %(dtype)s\n'
-            '---------------------------------------------------------------\n'
-            'precision=%(precision)3s   resolution= %(_str_resolution)s\n'
-            'machep=%(machep)6s   eps=        %(_str_eps)s\n'
-            'negep =%(negep)6s   epsneg=     %(_str_epsneg)s\n'
-            'minexp=%(minexp)6s   tiny=       %(_str_tiny)s\n'
-            'maxexp=%(maxexp)6s   max=        %(_str_max)s\n'
-            'nexp  =%(nexp)6s   min=        -max\n'
-            '---------------------------------------------------------------\n'
-            )
-        return fmt % self.__dict__
-
-    def __repr__(self):
-        c = self.__class__.__name__
-        d = self.__dict__.copy()
-        d['klass'] = c
-        return (("%(klass)s(resolution=%(resolution)s, min=-%(_str_max)s,"
-                 " max=%(_str_max)s, dtype=%(dtype)s)") % d)
+        return '''\
+Machine parameters for %(dtype)s
+---------------------------------------------------------------------
+precision=%(precision)3s   resolution= %(_str_resolution)s
+machep=%(machep)6s   eps=        %(_str_eps)s
+negep =%(negep)6s   epsneg=     %(_str_epsneg)s
+minexp=%(minexp)6s   tiny=       %(_str_tiny)s
+maxexp=%(maxexp)6s   max=        %(_str_max)s
+nexp  =%(nexp)6s   min=        -max
+---------------------------------------------------------------------
+''' % self.__dict__
 
 
-class iinfo(object):
+class iinfo:
     """
     iinfo(type)
 
@@ -207,7 +188,7 @@ class iinfo(object):
 
     Parameters
     ----------
-    int_type : integer type, dtype, or instance
+    type : integer type, dtype, or instance
         The kind of integer data type to get information about.
 
     See Also
@@ -250,7 +231,7 @@ class iinfo(object):
         self.kind = self.dtype.kind
         self.bits = self.dtype.itemsize * 8
         self.key = "%s%d" % (self.kind, self.bits)
-        if self.kind not in 'iu':
+        if not self.kind in 'iu':
             raise ValueError("Invalid integer data type.")
 
     def min(self):
@@ -261,7 +242,7 @@ class iinfo(object):
             try:
                 val = iinfo._min_vals[self.key]
             except KeyError:
-                val = int(-(1 << (self.bits-1)))
+                val = int(-(1L << (self.bits-1)))
                 iinfo._min_vals[self.key] = val
             return val
 
@@ -273,9 +254,9 @@ class iinfo(object):
             val = iinfo._max_vals[self.key]
         except KeyError:
             if self.kind == 'u':
-                val = int((1 << self.bits) - 1)
+                val = int((1L << self.bits) - 1)
             else:
-                val = int((1 << (self.bits-1)) - 1)
+                val = int((1L << (self.bits-1)) - 1)
             iinfo._max_vals[self.key] = val
         return val
 
@@ -283,26 +264,22 @@ class iinfo(object):
 
     def __str__(self):
         """String representation."""
-        fmt = (
-            'Machine parameters for %(dtype)s\n'
-            '---------------------------------------------------------------\n'
-            'min = %(min)s\n'
-            'max = %(max)s\n'
-            '---------------------------------------------------------------\n'
-            )
-        return fmt % {'dtype': self.dtype, 'min': self.min, 'max': self.max}
+        return '''\
+Machine parameters for %(dtype)s
+---------------------------------------------------------------------
+min = %(min)s
+max = %(max)s
+---------------------------------------------------------------------
+''' % {'dtype': self.dtype, 'min': self.min, 'max': self.max}
 
-    def __repr__(self):
-        return "%s(min=%s, max=%s, dtype=%s)" % (self.__class__.__name__,
-                                    self.min, self.max, self.dtype)
 
 if __name__ == '__main__':
     f = finfo(ntypes.single)
-    print('single epsilon:', f.eps)
-    print('single tiny:', f.tiny)
+    print 'single epsilon:',f.eps
+    print 'single tiny:',f.tiny
     f = finfo(ntypes.float)
-    print('float epsilon:', f.eps)
-    print('float tiny:', f.tiny)
+    print 'float epsilon:',f.eps
+    print 'float tiny:',f.tiny
     f = finfo(ntypes.longfloat)
-    print('longfloat epsilon:', f.eps)
-    print('longfloat tiny:', f.tiny)
+    print 'longfloat epsilon:',f.eps
+    print 'longfloat tiny:',f.tiny

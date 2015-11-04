@@ -1,8 +1,3 @@
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
-import six
-
 import os
 from nose.plugins.errorclass import ErrorClass, ErrorClassPlugin
 
@@ -14,7 +9,7 @@ class KnownFailureDidNotFailTest(Exception):
     '''Raise this exception to mark a test should have failed but did not.'''
     pass
 
-class ImageComparisonFailure(AssertionError):
+class ImageComparisonFailure(Exception):
     '''Raise this exception to mark a test as a comparison between two images.'''
 
 class KnownFailure(ErrorClassPlugin):

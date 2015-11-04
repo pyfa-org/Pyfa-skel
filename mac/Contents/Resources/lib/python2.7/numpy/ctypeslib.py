@@ -40,8 +40,8 @@ in-place.  For example::
 
 We wrap it using:
 
->>> _lib.foo_func.restype = None                      #doctest: +SKIP
->>> _lib.foo_func.argtypes = [array_1d_double, c_int] #doctest: +SKIP
+>>> lib.foo_func.restype = None                 #doctest: +SKIP
+>>> lib.foo.argtypes = [array_1d_double, c_int] #doctest: +SKIP
 
 Then, we're ready to call ``foo_func``:
 
@@ -49,8 +49,6 @@ Then, we're ready to call ``foo_func``:
 >>> _lib.foo_func(out, len(out))                #doctest: +SKIP
 
 """
-from __future__ import division, absolute_import, print_function
-
 __all__ = ['load_library', 'ndpointer', 'test', 'ctypes_load_library',
            'c_intp', 'as_ctypes', 'as_array']
 
@@ -74,7 +72,7 @@ if ctypes is None:
             If ctypes is not available.
 
         """
-        raise ImportError("ctypes is not available.")
+        raise ImportError, "ctypes is not available."
     ctypes_load_library = _dummy
     load_library = _dummy
     as_ctypes = _dummy
@@ -95,18 +93,16 @@ else:
                           "with ctypes < 1.0.1")
 
         ext = os.path.splitext(libname)[1]
+
         if not ext:
             # Try to load library with platform-specific name, otherwise
             # default to libname.[so|pyd].  Sometimes, these files are built
             # erroneously on non-linux platforms.
-            from numpy.distutils.misc_util import get_shared_lib_extension
-            so_ext = get_shared_lib_extension()
-            libname_ext = [libname + so_ext]
-            # mac, windows and linux >= py3.2 shared library and loadable
-            # module have different extensions so try both
-            so_ext2 = get_shared_lib_extension(is_python_ext=True)
-            if not so_ext2 == so_ext:
-                libname_ext.insert(0, libname + so_ext2)
+            libname_ext = ['%s.so' % libname, '%s.pyd' % libname]
+            if sys.platform == 'win32':
+                libname_ext.insert(0, '%s.dll' % libname)
+            elif sys.platform == 'darwin':
+                libname_ext.insert(0, '%s.dylib' % libname)
         else:
             libname_ext = [libname]
 
@@ -117,15 +113,13 @@ else:
             libdir = loader_path
 
         for ln in libname_ext:
-            libpath = os.path.join(libdir, ln)
-            if os.path.exists(libpath):
-                try:
-                    return ctypes.cdll[libpath]
-                except OSError:
-                    ## defective lib file
-                    raise
-        ## if no successful return in the libname_ext loop:
-        raise OSError("no file with expected extension")
+            try:
+                libpath = os.path.join(libdir, ln)
+                return ctypes.cdll[libpath]
+            except OSError, e:
+                pass
+
+        raise e
 
     ctypes_load_library = deprecate(load_library, 'ctypes_load_library',
                                     'load_library')
@@ -165,24 +159,24 @@ class _ndptr(_ndptr_base):
                 'typestr': self._dtype_.descr[0][1],
                 'data': (self.value, False),
                 }
-
+    
     @classmethod
     def from_param(cls, obj):
         if not isinstance(obj, ndarray):
-            raise TypeError("argument must be an ndarray")
+            raise TypeError, "argument must be an ndarray"
         if cls._dtype_ is not None \
                and obj.dtype != cls._dtype_:
-            raise TypeError("array must have data type %s" % cls._dtype_)
+            raise TypeError, "array must have data type %s" % cls._dtype_
         if cls._ndim_ is not None \
                and obj.ndim != cls._ndim_:
-            raise TypeError("array must have %d dimension(s)" % cls._ndim_)
+            raise TypeError, "array must have %d dimension(s)" % cls._ndim_
         if cls._shape_ is not None \
                and obj.shape != cls._shape_:
-            raise TypeError("array must have shape %s" % str(cls._shape_))
+            raise TypeError, "array must have shape %s" % str(cls._shape_)
         if cls._flags_ is not None \
                and ((obj.flags.num & cls._flags_) != cls._flags_):
-            raise TypeError("array must have flags %s" %
-                    _flags_fromnum(cls._flags_))
+            raise TypeError, "array must have flags %s" % \
+                  _flags_fromnum(cls._flags_)
         return obj.ctypes
 
 
@@ -257,7 +251,7 @@ def ndpointer(dtype=None, ndim=None, shape=None, flags=None):
             try:
                 flags = [x.strip().upper() for x in flags]
             except:
-                raise TypeError("invalid flags specification")
+                raise TypeError, "invalid flags specification"
             num = _num_fromflags(flags)
     try:
         return _pointer_type_cache[(dtype, ndim, shape, num)]
@@ -349,7 +343,7 @@ if ctypes is not None:
 
         shape = []
         ob = array_type
-        while type(ob) is _ARRAY_TYPE:
+        while type(ob) == _ARRAY_TYPE:
             shape.append(ob._length_)
             ob = ob._type_
         shape = tuple(shape)
@@ -392,7 +386,7 @@ if ctypes is not None:
     # public functions
 
     def as_array(obj, shape=None):
-        """Create a numpy array from a ctypes array or a ctypes POINTER.
+        """Create a numpy array from a ctypes array or a ctypes POINTER.  
         The numpy array shares the memory with the ctypes object.
 
         The size parameter must be given if converting from a ctypes POINTER.
@@ -400,7 +394,7 @@ if ctypes is not None:
         """
         tp = type(obj)
         try: tp.__array_interface__
-        except AttributeError:
+        except AttributeError: 
             if hasattr(obj, 'contents'):
                 prep_pointer(obj, shape)
             else:

@@ -1,10 +1,5 @@
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
-import six
-from six.moves import tkinter as Tk
-
-from matplotlib.backends import _tkagg
+import _tkagg
+import Tkinter as Tk
 
 def blit(photoimage, aggimage, bbox=None, colormode=1):
     tk = photoimage.tk
@@ -15,7 +10,7 @@ def blit(photoimage, aggimage, bbox=None, colormode=1):
         bbox_array = None
     try:
         tk.call("PyAggImagePhoto", photoimage, id(aggimage), colormode, id(bbox_array))
-    except Tk.TclError:
+    except Tk.TclError, v:
         try:
             try:
                 _tkagg.tkinit(tk.interpaddr(), 1)
@@ -35,3 +30,4 @@ def test(aggimage):
     c.create_image(aggimage.width,aggimage.height,image=p)
     blit(p, aggimage)
     while 1: r.update_idletasks()
+

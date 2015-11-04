@@ -1,7 +1,4 @@
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
-import six
+from __future__ import division
 
 import math
 import os
@@ -22,7 +19,6 @@ del pygtk_version_required
 import numpy as np
 
 import matplotlib
-from matplotlib import rcParams
 from matplotlib._pylab_helpers import Gcf
 from matplotlib.backend_bases import RendererBase, GraphicsContextBase, \
      FigureManagerBase, FigureCanvasBase
@@ -31,6 +27,7 @@ from matplotlib.figure import Figure
 from matplotlib.mathtext import MathTextParser
 from matplotlib.transforms import Affine2D
 from matplotlib.backends._backend_gdk import pixbuf_get_pixels_array
+
 
 backend_version = "%d.%d.%d" % gtk.pygtk_version
 _debug = False
@@ -142,10 +139,10 @@ class RendererGDK(RendererBase):
         im.flipud_out()
 
 
-    def draw_text(self, gc, x, y, s, prop, angle, ismath=False, mtext=None):
+    def draw_text(self, gc, x, y, s, prop, angle, ismath):
         x, y = int(x), int(y)
 
-        if x < 0 or y < 0: # window has shrunk and text is off the edge
+        if x <0 or y <0: # window has shrunk and text is off the edge
             return
 
         if angle not in (0,90):
@@ -160,9 +157,6 @@ class RendererGDK(RendererBase):
         else:
             layout, inkRect, logicalRect = self._get_pango_layout(s, prop)
             l, b, w, h = inkRect
-            if (x + w > self.width or y + h > self.height):
-                return
-
             self.gdkDrawable.draw_layout(gc.gdkGC, x, y-h-b, layout)
 
 
@@ -231,8 +225,7 @@ class RendererGDK(RendererBase):
         x = int(x-h)
         y = int(y-w)
 
-        if (x < 0 or y < 0 or # window has shrunk and text is off the edge
-            x + w > self.width or y + h > self.height):
+        if x < 0 or y < 0: # window has shrunk and text is off the edge
             return
 
         key = (x,y,s,angle,hash(prop))
@@ -396,8 +389,8 @@ class GraphicsContextGDK(GraphicsContextBase):
             self.gdkGC.line_style = gdk.LINE_ON_OFF_DASH
 
 
-    def set_foreground(self, fg, isRGBA=False):
-        GraphicsContextBase.set_foreground(self, fg, isRGBA)
+    def set_foreground(self, fg, isRGB=False):
+        GraphicsContextBase.set_foreground(self, fg, isRGB)
         self.gdkGC.foreground = self.rgb_to_gdk_color(self.get_rgb())
 
 
@@ -426,15 +419,11 @@ def new_figure_manager(num, *args, **kwargs):
     """
     FigureClass = kwargs.pop('FigureClass', Figure)
     thisFig = FigureClass(*args, **kwargs)
-    return new_figure_manager_given_figure(num, thisFig)
-
-
-def new_figure_manager_given_figure(num, figure):
-    """
-    Create a new figure manager instance for the given figure.
-    """
-    canvas  = FigureCanvasGDK(figure)
+    canvas  = FigureCanvasGDK(thisFig)
     manager = FigureManagerBase(canvas, num)
+    # equals:
+    #manager = FigureManagerBase (FigureCanvasGDK (Figure(*args, **kwargs),
+    #                             num)
     return manager
 
 
@@ -475,12 +464,7 @@ class FigureCanvasGDK (FigureCanvasBase):
         pixbuf.get_from_drawable(pixmap, pixmap.get_colormap(),
                                  0, 0, 0, 0, width, height)
 
-        # set the default quality, if we are writing a JPEG.
-        # http://www.pygtk.org/docs/pygtk/class-gdkpixbuf.html#method-gdkpixbuf--save
-        options = cbook.restrict_dict(kwargs, ['quality'])
-        if format in ['jpg','jpeg']:
-           if 'quality' not in options:
-              options['quality'] = rcParams['savefig.jpeg_quality']
-           options['quality'] = str(options['quality'])
+        pixbuf.save(filename, format)
 
-        pixbuf.save(filename, format, options=options)
+    def get_default_filetype(self):
+        return 'png'

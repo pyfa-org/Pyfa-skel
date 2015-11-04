@@ -1,6 +1,5 @@
-from __future__ import division, absolute_import, print_function
-
-from numpy.testing import TestCase, run_module_suite
+import sys
+from numpy.testing import *
 from swig_ext import example2
 
 class TestExample2(TestCase):

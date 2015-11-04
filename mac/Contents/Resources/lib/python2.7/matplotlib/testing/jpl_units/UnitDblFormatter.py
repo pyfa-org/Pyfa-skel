@@ -4,17 +4,11 @@
 #
 #===========================================================================
 
-
 """UnitDblFormatter module containing class UnitDblFormatter."""
 
 #===========================================================================
 # Place all imports after here.
 #
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
-import six
-
 import matplotlib.ticker as ticker
 #
 # Place all imports before here.

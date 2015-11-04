@@ -1,16 +1,11 @@
 """
-MS Windows-specific helper for the TkAgg backend.
+MS Windows-specific helper for TkAgg and FltkAgg backends.
 
 With rcParams['tk.window_focus'] default of False, it is
 effectively disabled.
 
 It uses a tiny C++ extension module to access MS Win functions.
 """
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
-import six
-
 from matplotlib import rcParams
 
 try:

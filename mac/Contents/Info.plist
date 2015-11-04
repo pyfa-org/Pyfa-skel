@@ -6,25 +6,14 @@
 	<string>English</string>
 	<key>CFBundleDisplayName</key>
 	<string>pyfa</string>
-	<key>CFBundleDocumentTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleTypeOSTypes</key>
-			<array>
-				<string>****</string>
-				<string>fold</string>
-				<string>disk</string>
-			</array>
-			<key>CFBundleTypeRole</key>
-			<string>Viewer</string>
-		</dict>
-	</array>
 	<key>CFBundleExecutable</key>
 	<string>pyfa</string>
+	<key>CFBundleGetInfoString</key>
+	<string>pyfa 0.0.1</string>
 	<key>CFBundleIconFile</key>
 	<string>pyfa.icns</string>
 	<key>CFBundleIdentifier</key>
-	<string>org.evefit.pya</string>
+	<string>org.evefit.pyfa</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
@@ -56,35 +45,32 @@
 		<key>alias</key>
 		<false/>
 		<key>argv_emulation</key>
-		<true/>
-		<key>emulate_shell_environment</key>
 		<false/>
 		<key>no_chdir</key>
 		<false/>
+		<key>optimize</key>
+		<integer>0</integer>
 		<key>prefer_ppc</key>
 		<false/>
 		<key>site_packages</key>
 		<false/>
-		<key>use_faulthandler</key>
-		<false/>
 		<key>use_pythonpath</key>
-		<false/>
-		<key>verbose</key>
 		<false/>
 	</dict>
 	<key>PyResourcePackages</key>
-	<array/>
+	<array>
+	</array>
 	<key>PyRuntimeLocations</key>
 	<array>
-		<string>@executable_path/../Frameworks/Python.framework/Python</string>
+		<string>@executable_path/../Frameworks/Python.framework/Versions/2.7/Python</string>
 	</array>
 	<key>PythonInfoDict</key>
 	<dict>
 		<key>PythonExecutable</key>
-		<string>/opt/local/Library/Frameworks/Python.framework/Versions/2.7/Resources/Python.app/Contents/MacOS/Python</string>
+		<string>/Library/Frameworks/Python.framework/Versions/2.7/Resources/Python.app/Contents/MacOS/Python</string>
 		<key>PythonLongVersion</key>
-		<string>2.7.10 (default, Aug 28 2015, 07:26:38) 
-[GCC 4.2.1 Compatible Apple LLVM 6.0 (clang-600.0.56)]</string>
+		<string>2.7 (r27:82508, Jul  3 2010, 21:12:11) 
+[GCC 4.0.1 (Apple Inc. build 5493)]</string>
 		<key>PythonShortVersion</key>
 		<string>2.7</string>
 		<key>py2app</key>
@@ -94,7 +80,7 @@
 			<key>template</key>
 			<string>app</string>
 			<key>version</key>
-			<string>0.9</string>
+			<string>0.5.2</string>
 		</dict>
 	</dict>
 </dict>
