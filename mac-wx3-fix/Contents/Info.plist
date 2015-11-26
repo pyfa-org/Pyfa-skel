@@ -6,19 +6,6 @@
 	<string>English</string>
 	<key>CFBundleDisplayName</key>
 	<string>pyfa</string>
-	<key>CFBundleDocumentTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleTypeOSTypes</key>
-			<array>
-				<string>****</string>
-				<string>fold</string>
-				<string>disk</string>
-			</array>
-			<key>CFBundleTypeRole</key>
-			<string>Viewer</string>
-		</dict>
-	</array>
 	<key>CFBundleExecutable</key>
 	<string>pyfa</string>
 	<key>CFBundleIconFile</key>
@@ -56,7 +43,7 @@
 		<key>alias</key>
 		<false/>
 		<key>argv_emulation</key>
-		<true/>
+		<false/>
 		<key>emulate_shell_environment</key>
 		<false/>
 		<key>no_chdir</key>
@@ -84,7 +71,7 @@
 		<key>PythonExecutable</key>
 		<string>/opt/local/Library/Frameworks/Python.framework/Versions/2.7/Resources/Python.app/Contents/MacOS/Python</string>
 		<key>PythonLongVersion</key>
-		<string>2.7.10 (default, Nov 20 2015, 20:56:50) 
+		<string>2.7.10 (default, Nov 23 2015, 00:02:42) 
 [GCC 4.2.1 Compatible Apple LLVM 4.2 (clang-425.0.28)]</string>
 		<key>PythonShortVersion</key>
 		<string>2.7</string>
