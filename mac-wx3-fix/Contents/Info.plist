@@ -11,7 +11,7 @@
 	<key>CFBundleIconFile</key>
 	<string>pyfa.icns</string>
 	<key>CFBundleIdentifier</key>
-	<string>org.pythonmac.unspecified.pyfa</string>
+	<string>org.evefit.pyfa</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
