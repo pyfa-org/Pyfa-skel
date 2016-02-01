@@ -1,3 +1,12 @@
+def _reset_sys_path():
+    # Clear generic sys.path[0]
+    import sys, os
+    resources = os.environ['RESOURCEPATH']
+    while sys.path[0] == resources:
+        del sys.path[0]
+_reset_sys_path()
+
+
 def _chdir_resource():
     import os
     os.chdir(os.environ['RESOURCEPATH'])
@@ -13,20 +22,60 @@ def _disable_linecache():
 _disable_linecache()
 
 
-def _run(*scripts):
+import re, sys
+cookie_re = re.compile(b"coding[:=]\s*([-\w.]+)")
+if sys.version_info[0] == 2:
+    default_encoding = 'ascii'
+else:
+    default_encoding = 'utf-8'
+
+def guess_encoding(fp):
+    for i in range(2):
+        ln = fp.readline()
+
+        m = cookie_re.search(ln)
+        if m is not None:
+            return m.group(1).decode('ascii')
+
+    return default_encoding
+
+def _run():
     global __file__
-    import os, sys, site
+    import os, site
     sys.frozen = 'macosx_app'
     base = os.environ['RESOURCEPATH']
-    site.addsitedir(base)
-    site.addsitedir(os.path.join(base, 'Python', 'site-packages'))
-    if not scripts:
-        import __main__
-    for script in scripts:
-        path = os.path.join(base, script)
-        sys.argv[0] = __file__ = path
-        sys.argv = list(filter(lambda arg: not unicode(arg).startswith(u"-psn"), sys.argv))
-        execfile(path, globals(), globals())
+
+    argv0 = os.path.basename(os.environ['ARGVZERO'])
+    script = SCRIPT_MAP.get(argv0, DEFAULT_SCRIPT)
+
+    path = os.path.join(base, script)
+    sys.argv[0] = __file__ = path
+    if sys.version_info[0] == 2:
+        with open(path, 'rU') as fp:
+            source = fp.read() + "\n"
+    else:
+        with open(path, 'rb') as fp:
+            encoding = guess_encoding(fp)
+
+        with open(path, 'r', encoding=encoding) as fp:
+            source = fp.read() + '\n'
+    exec(compile(source, path, 'exec'), globals(), globals())
 
 
-_run('pyfa.py')
+import os
+os.environ['MATPLOTLIBDATA'] = os.path.join(os.environ['RESOURCEPATH'], 'mpl-data')
+
+
+def _setup_ctypes():
+    from ctypes.macholib import dyld
+    import os
+    frameworks = os.path.join(os.environ['RESOURCEPATH'], '..', 'Frameworks')
+    dyld.DEFAULT_FRAMEWORK_FALLBACK.insert(0, frameworks)
+    dyld.DEFAULT_LIBRARY_FALLBACK.insert(0, frameworks)
+
+_setup_ctypes()
+
+
+DEFAULT_SCRIPT='pyfa.py'
+SCRIPT_MAP={}
+_run()

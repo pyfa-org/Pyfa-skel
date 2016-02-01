@@ -1,3 +1,8 @@
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+from matplotlib.externals import six
+
 from matplotlib.contour import ContourSet
 from matplotlib.tri.triangulation import Triangulation
 import matplotlib._tri as _tri
@@ -49,7 +54,7 @@ class TriContourSet(ContourSet):
             x1 = tri.x.max()
             y0 = tri.y.min()
             y1 = tri.y.max()
-            self.ax.update_datalim([(x0,y0), (x1,y1)])
+            self.ax.update_datalim([(x0, y0), (x1, y1)])
             self.ax.autoscale_view()
 
         self.cppContourGenerator = C
@@ -64,7 +69,7 @@ class TriContourSet(ContourSet):
             allkinds = []
             for lower, upper in zip(lowers, uppers):
                 segs, kinds = self.cppContourGenerator.create_filled_contour(
-                                                                 lower, upper)
+                    lower, upper)
                 allsegs.append([segs])
                 allkinds.append([kinds])
         else:
@@ -75,14 +80,16 @@ class TriContourSet(ContourSet):
         return allsegs, allkinds
 
     def _contour_args(self, args, kwargs):
-        if self.filled: fn = 'contourf'
-        else:           fn = 'contour'
-        tri, args, kwargs = \
-            Triangulation.get_from_args_and_kwargs(*args, **kwargs)
+        if self.filled:
+            fn = 'contourf'
+        else:
+            fn = 'contour'
+        tri, args, kwargs = Triangulation.get_from_args_and_kwargs(*args,
+                                                                   **kwargs)
         z = np.asarray(args[0])
         if z.shape != tri.x.shape:
             raise ValueError('z array must have same length as triangulation x'
-                             'and y arrays')
+                             ' and y arrays')
         self.zmax = z.max()
         self.zmin = z.min()
         if self.logscale and self.zmin <= 0:
@@ -91,6 +98,7 @@ class TriContourSet(ContourSet):
         return (tri, z)
 
     tricontour_doc = """
+        Draw contours on an unstructured triangular grid.
         :func:`~matplotlib.pyplot.tricontour` and
         :func:`~matplotlib.pyplot.tricontourf` draw contour lines and
         filled contours, respectively.  Except as noted, function
@@ -100,7 +108,7 @@ class TriContourSet(ContourSet):
 
           tricontour(triangulation, ...)
 
-        where triangulation is a :class:`~matplotlib.tri.Triangulation`
+        where triangulation is a :class:`matplotlib.tri.Triangulation`
         object, or
 
         ::
@@ -108,9 +116,7 @@ class TriContourSet(ContourSet):
           tricontour(x, y, ...)
           tricontour(x, y, triangles, ...)
           tricontour(x, y, triangles=triangles, ...)
-          tricontour(x, y, mask, ...)
           tricontour(x, y, mask=mask, ...)
-          tricontour(x, y, triangles, mask, ...)
           tricontour(x, y, triangles, mask=mask, ...)
 
         in which case a Triangulation object will be created.  See
@@ -155,7 +161,7 @@ class TriContourSet(ContourSet):
 
         Optional keyword arguments:
 
-          *colors*: [ None | string | (mpl_colors) ]
+          *colors*: [ *None* | string | (mpl_colors) ]
             If *None*, the colormap specified by cmap will be used.
 
             If a string, like 'r' or 'red', all levels will be plotted in this
@@ -168,22 +174,22 @@ class TriContourSet(ContourSet):
           *alpha*: float
             The alpha blending value
 
-          *cmap*: [ None | Colormap ]
-            A cm :class:`~matplotlib.cm.Colormap` instance or
+          *cmap*: [ *None* | Colormap ]
+            A cm :class:`~matplotlib.colors.Colormap` instance or
             *None*. If *cmap* is *None* and *colors* is *None*, a
             default Colormap is used.
 
-          *norm*: [ None | Normalize ]
+          *norm*: [ *None* | Normalize ]
             A :class:`matplotlib.colors.Normalize` instance for
             scaling data values to colors. If *norm* is *None* and
             *colors* is *None*, the default linear scaling is used.
 
           *levels* [level0, level1, ..., leveln]
             A list of floating point numbers indicating the level
-            curves to draw; eg to draw just the zero contour pass
+            curves to draw; e.g., to draw just the zero contour pass
             ``levels=[0]``
 
-          *origin*: [ None | 'upper' | 'lower' | 'image' ]
+          *origin*: [ *None* | 'upper' | 'lower' | 'image' ]
             If *None*, the first value of *Z* will correspond to the
             lower left corner, location (0,0). If 'image', the rc
             value for ``image.origin`` will be used.
@@ -191,7 +197,7 @@ class TriContourSet(ContourSet):
             This keyword is not active if *X* and *Y* are specified in
             the call to contour.
 
-          *extent*: [ None | (x0,x1,y0,y1) ]
+          *extent*: [ *None* | (x0,x1,y0,y1) ]
 
             If *origin* is not *None*, then *extent* is interpreted as
             in :func:`matplotlib.pyplot.imshow`: it gives the outer
@@ -203,7 +209,7 @@ class TriContourSet(ContourSet):
             This keyword is not active if *X* and *Y* are specified in
             the call to contour.
 
-          *locator*: [ None | ticker.Locator subclass ]
+          *locator*: [ *None* | ticker.Locator subclass ]
             If *locator* is None, the default
             :class:`~matplotlib.ticker.MaxNLocator` is used. The
             locator is used to determine the contour levels if they
@@ -218,14 +224,14 @@ class TriContourSet(ContourSet):
             :meth:`matplotlib.colors.Colormap.set_under` and
             :meth:`matplotlib.colors.Colormap.set_over` methods.
 
-          *xunits*, *yunits*: [ None | registered units ]
+          *xunits*, *yunits*: [ *None* | registered units ]
             Override axis units by specifying an instance of a
             :class:`matplotlib.units.ConversionInterface`.
 
 
         tricontour-only keyword arguments:
 
-          *linewidths*: [ None | number | tuple of numbers ]
+          *linewidths*: [ *None* | number | tuple of numbers ]
             If *linewidths* is *None*, the default width in
             ``lines.linewidth`` in ``matplotlibrc`` is used.
 
@@ -234,7 +240,7 @@ class TriContourSet(ContourSet):
             If a tuple, different levels will be plotted with different
             linewidths in the order specified
 
-          *linestyles*: [None | 'solid' | 'dashed' | 'dashdot' | 'dotted' ]
+          *linestyles*: [ *None* | 'solid' | 'dashed' | 'dashdot' | 'dotted' ]
             If *linestyles* is *None*, the 'solid' is used.
 
             *linestyles* can also be an iterable of the above strings
@@ -249,15 +255,8 @@ class TriContourSet(ContourSet):
 
         tricontourf-only keyword arguments:
 
-          *antialiased*: [ True | False ]
+          *antialiased*: [ *True* | *False* ]
             enable antialiasing
-
-          *nchunk*: [ 0 | integer ]
-            If 0, no subdivision of the domain. Specify a positive integer to
-            divide the domain into subdomains of roughly *nchunk* by *nchunk*
-            points. This may never actually be advantageous, so this option may
-            be removed. Chunking introduces artifacts at the chunk boundaries
-            unless *antialiased* is *False*.
 
         Note: tricontourf fills intervals that are closed at the top; that
         is, for boundaries *z1* and *z2*, the filled region is::
@@ -275,14 +274,16 @@ class TriContourSet(ContourSet):
 
 
 def tricontour(ax, *args, **kwargs):
-    if not ax._hold: ax.cla()
+    if not ax._hold:
+        ax.cla()
     kwargs['filled'] = False
     return TriContourSet(ax, *args, **kwargs)
 tricontour.__doc__ = TriContourSet.tricontour_doc
 
 
 def tricontourf(ax, *args, **kwargs):
-    if not ax._hold: ax.cla()
+    if not ax._hold:
+        ax.cla()
     kwargs['filled'] = True
     return TriContourSet(ax, *args, **kwargs)
 tricontourf.__doc__ = TriContourSet.tricontour_doc
